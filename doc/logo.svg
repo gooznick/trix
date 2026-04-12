@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="320" height="80">
+  <rect width="320" height="80" rx="8" fill="#1a1a2e"/>
+
+  <!-- Trace line decoration -->
+  <polyline points="10,60 40,20 70,45 100,15 130,50 160,30"
+            fill="none" stroke="#00d4ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+  <circle cx="160" cy="30" r="3" fill="#00d4ff" opacity="0.9"/>
+
+  <!-- trix wordmark -->
+  <text x="175" y="52" font-family="monospace" font-size="38" font-weight="bold" fill="#ffffff" letter-spacing="-1">
+    trix
+  </text>
+
+  <!-- subtitle -->
+  <text x="176" y="68" font-family="monospace" font-size="10" fill="#00d4ff" opacity="0.8" letter-spacing="1">
+    TRacers mIX
+  </text>
+</svg>
