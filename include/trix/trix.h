@@ -12,6 +12,7 @@
 #define TRIX_H
 
 #include <stdint.h>
+#include "trix_version.h"
 
 /* --- DLL import/export --- */
 #if defined(_WIN32)
@@ -39,6 +40,7 @@ TRIX_API void trix_algo_end(const char* name);
 TRIX_API void trix_data_int(const char* key, uint64_t value);
 TRIX_API void trix_data_float(const char* key, float value);
 TRIX_API void trix_data_string(const char* key, const char* value);
+TRIX_API const char* trix_version(void);
 
 #define TRIX_FRAME_BEGIN(n)    trix_frame_begin(n)
 #define TRIX_FRAME_END(n)      trix_frame_end(n)
@@ -47,6 +49,7 @@ TRIX_API void trix_data_string(const char* key, const char* value);
 #define TRIX_DATA_INT(k, v)    trix_data_int(k, v)
 #define TRIX_DATA_FLOAT(k, v)  trix_data_float(k, v)
 #define TRIX_DATA_STRING(k, v) trix_data_string(k, v)
+#define TRIX_VERSION()         trix_version()
 
 #else /* TRIX_ENABLED not defined — all no-ops */
 
@@ -57,6 +60,7 @@ static inline void trix_algo_end(const char* name)                        { (voi
 static inline void trix_data_int(const char* key, uint64_t value)         { (void)key; (void)value; }
 static inline void trix_data_float(const char* key, float value)          { (void)key; (void)value; }
 static inline void trix_data_string(const char* key, const char* value)   { (void)key; (void)value; }
+static inline const char* trix_version(void)                              { return TRIX_VERSION_STRING; }
 
 #define TRIX_FRAME_BEGIN(n)    ((void)(n))
 #define TRIX_FRAME_END(n)      ((void)(n))
@@ -65,6 +69,7 @@ static inline void trix_data_string(const char* key, const char* value)   { (voi
 #define TRIX_DATA_INT(k, v)    ((void)(k), (void)(v))
 #define TRIX_DATA_FLOAT(k, v)  ((void)(k), (void)(v))
 #define TRIX_DATA_STRING(k, v) ((void)(k), (void)(v))
+#define TRIX_VERSION()         (TRIX_VERSION_STRING)
 
 #endif /* TRIX_ENABLED */
 

@@ -1,5 +1,19 @@
 cmake_minimum_required(VERSION 3.16)
-project(trix VERSION 1.0.0 LANGUAGES C CXX)
+
+# --- Read version from trix_version.h (single source of truth) ---
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/include/trix/trix_version.h" _ver_lines
+    REGEX "^#define TRIX_VERSION_(MAJOR|MINOR|PATCH) ")
+foreach(_line ${_ver_lines})
+    if(_line MATCHES "TRIX_VERSION_MAJOR ([0-9]+)")
+        set(_TRIX_MAJOR ${CMAKE_MATCH_1})
+    elseif(_line MATCHES "TRIX_VERSION_MINOR ([0-9]+)")
+        set(_TRIX_MINOR ${CMAKE_MATCH_1})
+    elseif(_line MATCHES "TRIX_VERSION_PATCH ([0-9]+)")
+        set(_TRIX_PATCH ${CMAKE_MATCH_1})
+    endif()
+endforeach()
+
+project(trix VERSION "${_TRIX_MAJOR}.${_TRIX_MINOR}.${_TRIX_PATCH}" LANGUAGES C CXX)
 
 # --- Platform-appropriate backend defaults ---
 if(WIN32)
@@ -86,7 +100,11 @@ target_include_directories(trix
 )
 
 target_compile_definitions(trix PRIVATE ${TRIX_DEFINES} _GNU_SOURCE TRIX_BUILDING_DLL)
-set_target_properties(trix PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+set_target_properties(trix PROPERTIES
+    WINDOWS_EXPORT_ALL_SYMBOLS ON
+    VERSION   ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+)
 
 if(TRIX_BACKEND_ETW)
     # TraceLoggingProvider.h requires C++ in some SDK versions
@@ -107,7 +125,7 @@ install(TARGETS trix
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-install(FILES include/trix/trix.h
+install(FILES include/trix/trix.h include/trix/trix_version.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/trix
 )
 

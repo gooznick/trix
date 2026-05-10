@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "trix_internal.h"
+#include "trix/trix_version.h"
 
 /* Forward declarations for compiled-in backends */
 const trix_vtable_t* trix_backend_nop_init(void);
@@ -106,3 +107,4 @@ void trix_algo_end(const char* name)                     { g_trix_vtable.algo_en
 void trix_data_int(const char* key, uint64_t value)      { g_trix_vtable.data_int(key, value); }
 void trix_data_float(const char* key, float value)       { g_trix_vtable.data_float(key, value); }
 void trix_data_string(const char* key, const char* value){ g_trix_vtable.data_string(key, value); }
+const char* trix_version(void)                           { return TRIX_VERSION_STRING; }
