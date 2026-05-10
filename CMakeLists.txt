@@ -118,11 +118,13 @@ add_subdirectory(tests)
 
 # --- Install ---
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 install(TARGETS trix
     EXPORT TrixTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
 install(FILES include/trix/trix.h include/trix/trix_version.h
@@ -132,5 +134,23 @@ install(FILES include/trix/trix.h include/trix/trix_version.h
 install(EXPORT TrixTargets
     FILE TrixTargets.cmake
     NAMESPACE Trix::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/trix
+)
+
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TrixConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/TrixConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/trix
+)
+
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/TrixConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/TrixConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/TrixConfigVersion.cmake"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/trix
 )

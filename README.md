@@ -102,7 +102,39 @@ Requires CMake 3.16+. ITT backend sources are fetched automatically if not prese
 
 ---
 
+## Install
+
+Install to the system default prefix (`/usr/local` on Linux):
+
+```bash
+cmake --install build
+```
+
+Or to a custom prefix:
+
+```bash
+cmake --install build --prefix /path/to/prefix
+```
+
+What gets installed:
+
+```
+<prefix>/
+  include/trix/trix.h
+  include/trix/trix_version.h
+  lib/libtrix.so          # Linux (also libtrix.so.1, libtrix.so.1.x.x)
+  bin/trix.dll            # Windows
+  lib/cmake/trix/
+    TrixConfig.cmake
+    TrixConfigVersion.cmake
+    TrixTargets.cmake
+```
+
+---
+
 ## Usage in your project
+
+After installing, point CMake at the prefix and use `find_package`:
 
 ```cmake
 find_package(Trix REQUIRED)
@@ -110,10 +142,25 @@ target_link_libraries(myapp PRIVATE Trix::trix)
 target_compile_definitions(myapp PRIVATE TRIX_ENABLED)
 ```
 
-Or manually:
+```bash
+# If installed to a custom prefix, tell CMake where to look:
+cmake -B build -DCMAKE_PREFIX_PATH=/path/to/prefix
+```
+
+At runtime, make sure the library is on the dynamic linker path:
+
+```bash
+# Linux
+export LD_LIBRARY_PATH=/path/to/prefix/lib:$LD_LIBRARY_PATH
+
+# Windows — add the install bin\ directory to PATH
+set PATH=C:\path\to\prefix\bin;%PATH%
+```
+
+Or manually, without installing:
 ```cmake
 target_include_directories(myapp PRIVATE /path/to/trix/include)
-target_link_libraries(myapp PRIVATE trix)
+target_link_libraries(myapp PRIVATE /path/to/trix/build/libtrix.so)
 target_compile_definitions(myapp PRIVATE TRIX_ENABLED)
 ```
 
