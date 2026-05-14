@@ -90,60 +90,75 @@ TRIX_BACKEND=wrong ./build/tests/test_basic
 
 ## ftrace backend
 
+The ftrace backend writes events to `trace_marker` using the **atrace/systrace
+wire format**, which Perfetto renders as properly nested duration spans.
+
 ### Activate and capture
 
 Requires root (or write access to `/sys/kernel/tracing/trace_marker`).
 
 ```bash
-# Clear and enable the trace buffer
+# Enable scheduling events
+sudo sh -c 'echo 1 > /sys/kernel/tracing/events/sched/sched_switch/enable'
+sudo sh -c 'echo 1 > /sys/kernel/tracing/events/sched/sched_wakeup/enable'
+sudo sh -c 'echo 1 > /sys/kernel/tracing/events/sched/sched_migrate_task/enable'
+
+# Clear and start
 sudo sh -c 'echo > /sys/kernel/tracing/trace'
 sudo sh -c 'echo 1 > /sys/kernel/tracing/tracing_on'
 
 # Run your application
 sudo env TRIX_BACKEND=ftrace ./test_basic
 
-# Stop and read the output
+# Stop and save
 sudo sh -c 'echo 0 > /sys/kernel/tracing/tracing_on'
-sudo cat /sys/kernel/tracing/trace
+sudo cat /sys/kernel/tracing/trace > trace.txt
 ```
 
-### Output
+### Raw output
 
 ```
 # tracer: nop
 #
-# entries-in-buffer/entries-written: 17/17   #P:16
-#
 #           TASK-PID     CPU#  |||||  TIMESTAMP  FUNCTION
 #              | |         |   |||||     |         |
-     test_basic-297239  [001] ..... 295851.622946: tracing_mark_write: trix_frame_begin 0
-     test_basic-297239  [001] ..... 295851.622952: tracing_mark_write: trix_algo_begin encode
-     test_basic-297239  [001] ..... 295851.622962: tracing_mark_write: trix_data_int width=1920
-     test_basic-297239  [001] ..... 295851.622964: tracing_mark_write: trix_data_int height=1080
-     test_basic-297239  [001] ..... 295851.623008: tracing_mark_write: trix_data_float fps=29.969999
-     test_basic-297239  [001] ..... 295851.623011: tracing_mark_write: trix_data_string codec=h264
-     test_basic-297239  [001] ..... 295851.623013: tracing_mark_write: trix_algo_end encode
-     test_basic-297239  [001] ..... 295851.623016: tracing_mark_write: trix_frame_end 0
-     test_basic-297239  [001] ..... 295851.623018: tracing_mark_write: trix_frame_begin 1
-     test_basic-297239  [001] ..... 295851.623021: tracing_mark_write: trix_algo_begin decode
-     test_basic-297239  [001] ..... 295851.623023: tracing_mark_write: trix_algo_end decode
-     test_basic-297239  [001] ..... 295851.623030: tracing_mark_write: trix_frame_end 1
-     test_basic-297239  [001] ..... 295851.623032: tracing_mark_write: trix_frame_begin 2
-     test_basic-297239  [001] ..... 295851.623035: tracing_mark_write: trix_algo_begin render
-     test_basic-297239  [001] ..... 295851.623037: tracing_mark_write: trix_data_int triangles=42000
-     test_basic-297239  [001] ..... 295851.623040: tracing_mark_write: trix_algo_end render
-     test_basic-297239  [001] ..... 295851.623042: tracing_mark_write: trix_frame_end 2
+  test_basic-297239  [001] ..... 295851.622946: tracing_mark_write: B|297239|frame_0
+  test_basic-297239  [001] ..... 295851.622952: tracing_mark_write: B|297239|encode
+  test_basic-297239  [001] ..... 295851.622962: tracing_mark_write: C|297239|width|1920
+  test_basic-297239  [001] ..... 295851.622964: tracing_mark_write: C|297239|height|1080
+  test_basic-297239  [001] ..... 295851.623008: tracing_mark_write: C|297239|fps|29.97
+  test_basic-297239  [001] ..... 295851.623011: tracing_mark_write: B|297239|codec=h264
+  test_basic-297239  [001] ..... 295851.623011: tracing_mark_write: E|297239
+  test_basic-297239  [001] ..... 295851.623013: tracing_mark_write: E|297239
+  test_basic-297239  [001] ..... 295851.623016: tracing_mark_write: E|297239
+  test_basic-297239  [001] ..... 295851.623018: tracing_mark_write: B|297239|frame_1
+  test_basic-297239  [001] ..... 295851.623021: tracing_mark_write: B|297239|decode
+  test_basic-297239  [001] ..... 295851.623023: tracing_mark_write: E|297239
+  test_basic-297239  [001] ..... 295851.623030: tracing_mark_write: E|297239
 ```
 
-Each line shows: process name, PID, CPU, kernel flags, timestamp (seconds), and the trix event.
+`B|<pid>|<name>` = begin span, `E|<pid>` = end span (LIFO per thread), `C|<pid>|<key>|<value>` = counter.
 
-### View with trace-cmd (optional)
+### View with Perfetto (recommended)
+
+Transfer `trace.txt` to any machine with a browser:
+
+```
+https://ui.perfetto.dev  →  Open trace file  →  drag and drop trace.txt
+```
+
+Perfetto shows:
+- Per-CPU lanes with thread scheduling
+- Per-thread lanes with nested trix spans (frame → algo → ...)
+- Context switches (`sched_switch`), wakeups, CPU migrations
+
+### View with trace-cmd / KernelShark (optional)
 
 ```bash
-apt install trace-cmd
-sudo trace-cmd record -e 'ftrace:print' \
+apt install trace-cmd kernelshark
+sudo trace-cmd record -e 'ftrace:print' -e 'sched:sched_switch' \
     env TRIX_BACKEND=ftrace ./test_basic
-trace-cmd report
+kernelshark trace.dat
 ```
 
 ---

@@ -31,6 +31,13 @@
 
 #include <opencv2/imgproc.hpp>
 
+#ifdef __linux__
+#  include <pthread.h>
+#  define SET_THREAD_NAME(name) pthread_setname_np(pthread_self(), (name))
+#else
+#  define SET_THREAD_NAME(name) (void)(name)
+#endif
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Configuration
 // ─────────────────────────────────────────────────────────────────────────────
@@ -55,8 +62,14 @@ static constexpr float  MIN_SCORE      = 0.5f; // NCC threshold for good matches
 class ThreadPool {
 public:
     explicit ThreadPool(int n) {
-        for (int i = 0; i < n; ++i)
-            workers_.emplace_back([this] { run(); });
+        for (int i = 0; i < n; ++i) {
+            workers_.emplace_back([this, i] {
+                char name[16];
+                std::snprintf(name, sizeof(name), "trix_worker_%d", i);
+                SET_THREAD_NAME(name);
+                run();
+            });
+        }
     }
 
     ~ThreadPool() {
@@ -246,6 +259,8 @@ static cv::Point2f estimate_translation(std::vector<PatchResult>& results)
 
 int main()
 {
+    SET_THREAD_NAME("trix_demo");
+
     using Clock = std::chrono::steady_clock;
     const auto frame_period = std::chrono::duration<double>(1.0 / TARGET_HZ);
 

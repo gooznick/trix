@@ -63,12 +63,8 @@ export LD_LIBRARY_PATH=build   # or wherever libtrix.so lives
 # No backend — all trix calls are no-ops, pure timing baseline
 ./build/demo/trix_demo
 
-# ftrace — kernel ring buffer
+# ftrace + Perfetto (recommended — see "Capture and visualise" below)
 TRIX_BACKEND=ftrace ./build/demo/trix_demo
-sudo cat /sys/kernel/tracing/trace | grep trix | head -20
-
-# perf SDT probes
-TRIX_BACKEND=perf ./build/demo/trix_demo
 
 # Intel VTune
 TRIX_BACKEND=itt ./build/demo/trix_demo
@@ -77,6 +73,48 @@ TRIX_BACKEND=itt ./build/demo/trix_demo
 set TRIX_BACKEND=etw
 trix_demo.exe
 ```
+
+---
+
+## Capture and visualise with Perfetto
+
+Perfetto (https://ui.perfetto.dev) renders the ftrace atrace format as nested
+duration spans on a per-thread / per-CPU timeline — showing threads, cores,
+context switches, and trix spans on the same graph.
+
+### On the target (embedded or development machine)
+
+```bash
+# One script does it all — requires root, no other packages needed
+sudo ./demo/capture.sh
+# produces: demo/trix_trace.txt
+```
+
+The script:
+1. Mounts tracefs if not already mounted
+2. Enables `sched_switch`, `sched_wakeup`, `sched_migrate_task`
+3. Runs the demo with `TRIX_BACKEND=ftrace`
+4. Saves `cat /sys/kernel/tracing/trace` → `trix_trace.txt`
+
+### On the host (view)
+
+```bash
+scp target:~/trix_trace.txt .
+# open https://ui.perfetto.dev → drag and drop trix_trace.txt
+```
+
+Perfetto works offline once loaded (PWA with service-worker cache).
+
+### What you see in Perfetto
+
+| Track | Content |
+|-------|---------|
+| CPU 0..N | Which thread ran on each core (context switches) |
+| `trix_demo` | `frame_0`..`frame_N` spans with nested `generate`, `dispatch`, `wait`, `estimate` |
+| `trix_worker_0..3` | Parallel `correlate` spans (70 patches per frame across 4 threads) |
+| Counters | `est_tx`, `est_ty` per-frame estimated translation |
+
+---
 
 ## Expected output
 
