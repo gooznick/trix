@@ -116,6 +116,12 @@ endif()
 enable_testing()
 add_subdirectory(tests)
 
+# --- Demo (requires OpenCV) ---
+option(TRIX_BUILD_DEMO "Build the trix demo application (requires OpenCV)" OFF)
+if(TRIX_BUILD_DEMO)
+    add_subdirectory(demo)
+endif()
+
 # --- Install ---
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
