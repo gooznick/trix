@@ -85,16 +85,20 @@ context switches, and trix spans on the same graph.
 ### On the target (embedded or development machine)
 
 ```bash
-# One script does it all — requires root, no other packages needed
-sudo ./demo/capture.sh
-# produces: demo/trix_trace.txt
+# All-in-one — requires root
+sudo sh ./scripts/capture_ftrace.sh ./build/demo/trix_demo
+# produces: trix_ftrace_YYYYMMDD_HHMMSS.txt
+
+# Or: start tracing, Ctrl+C when done, then save separately
+sudo sh ./scripts/capture_ftrace_pre.sh ./build/demo/trix_demo
+sudo sh ./scripts/capture_ftrace_post.sh
 ```
 
-The script:
-1. Mounts tracefs if not already mounted
-2. Enables `sched_switch`, `sched_wakeup`, `sched_migrate_task`
-3. Runs the demo with `TRIX_BACKEND=ftrace`
-4. Saves `cat /sys/kernel/tracing/trace` → `trix_trace.txt`
+The scripts:
+1. Mount tracefs if not already mounted
+2. Enable `sched_switch`, `sched_wakeup`, `sched_migrate_task`
+3. Run the command with `TRIX_BACKEND=ftrace`
+4. Save `cat /sys/kernel/tracing/trace` → `trix_ftrace_*.txt`
 
 ### On the host (view)
 

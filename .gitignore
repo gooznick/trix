@@ -11,3 +11,12 @@ cmake_install.cmake
 CMakeCache.txt
 CTestTestfile.cmake
 Makefile
+
+# Trace output files
+trix_*.atrace
+trix_*.txt
+trix_*.data
+trix_*.pftrace
+trix_*.pftrace.json
+trix_vtune_*/
+*.tar.gz

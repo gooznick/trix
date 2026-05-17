@@ -33,6 +33,14 @@ const trix_vtable_t* trix_backend_etw_init(void);
 void                 trix_backend_etw_shutdown(void);
 #endif
 
+#ifdef TRIX_BACKEND_LTTNG
+const trix_vtable_t* trix_backend_lttng_init(void);
+#endif
+
+#ifdef TRIX_BACKEND_ATRACE
+const trix_vtable_t* trix_backend_atrace_init(void);
+#endif
+
 /* --- Global vtable — written once in constructor, read-only after --- */
 trix_vtable_t g_trix_vtable;
 
@@ -62,6 +70,16 @@ static void trix_select_backend(void) {
 #ifdef TRIX_BACKEND_ETW
     else if (strcmp(backend, "etw") == 0) {
         vt = trix_backend_etw_init();
+    }
+#endif
+#ifdef TRIX_BACKEND_LTTNG
+    else if (strcmp(backend, "lttng") == 0) {
+        vt = trix_backend_lttng_init();
+    }
+#endif
+#ifdef TRIX_BACKEND_ATRACE
+    else if (strcmp(backend, "atrace") == 0) {
+        vt = trix_backend_atrace_init();
     }
 #endif
     else {

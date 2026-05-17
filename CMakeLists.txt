@@ -21,17 +21,21 @@ if(WIN32)
     set(_TRIX_PERF_DEFAULT   OFF)
     set(_TRIX_ITT_DEFAULT    ON)
     set(_TRIX_ETW_DEFAULT    ON)
+    set(_TRIX_LTTNG_DEFAULT  OFF)
 else()
     set(_TRIX_FTRACE_DEFAULT ON)
     set(_TRIX_PERF_DEFAULT   ON)
     set(_TRIX_ITT_DEFAULT    ON)
     set(_TRIX_ETW_DEFAULT    OFF)
+    set(_TRIX_LTTNG_DEFAULT  OFF)
 endif()
 
 option(TRIX_BACKEND_FTRACE "Include ftrace backend (Linux only)" ${_TRIX_FTRACE_DEFAULT})
 option(TRIX_BACKEND_PERF   "Include perf/SDT backend (Linux only)" ${_TRIX_PERF_DEFAULT})
 option(TRIX_BACKEND_ITT    "Include Intel VTune ITT backend" ${_TRIX_ITT_DEFAULT})
 option(TRIX_BACKEND_ETW    "Include ETW backend (Windows only)" ${_TRIX_ETW_DEFAULT})
+option(TRIX_BACKEND_LTTNG  "Include LTTng-UST backend (Linux only, requires liblttng-ust-dev)" ${_TRIX_LTTNG_DEFAULT})
+option(TRIX_BACKEND_ATRACE "Include atrace/file backend (Linux/Windows)" ON)
 
 # --- Library sources ---
 set(TRIX_SOURCES
@@ -87,6 +91,28 @@ if(TRIX_BACKEND_ETW)
     list(APPEND TRIX_DEFINES TRIX_BACKEND_ETW)
 endif()
 
+if(TRIX_BACKEND_LTTNG)
+    if(NOT UNIX)
+        message(FATAL_ERROR "TRIX_BACKEND_LTTNG is only supported on Linux")
+    endif()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LTTNG_UST REQUIRED IMPORTED_TARGET lttng-ust)
+    # lttng-ust >= 2.14 (Ubuntu 24.04+) uses a renamed API set.
+    if(LTTNG_UST_VERSION VERSION_GREATER_EQUAL "2.14")
+        list(APPEND TRIX_DEFINES TRIX_LTTNG_UST_NEW_API)
+        message(STATUS "trix: lttng-ust ${LTTNG_UST_VERSION} — using new API (>= 2.14)")
+    else()
+        message(STATUS "trix: lttng-ust ${LTTNG_UST_VERSION} — using old API (< 2.14)")
+    endif()
+    list(APPEND TRIX_SOURCES src/backends/lttng/backend_lttng.c)
+    list(APPEND TRIX_DEFINES TRIX_BACKEND_LTTNG)
+endif()
+
+if(TRIX_BACKEND_ATRACE)
+    list(APPEND TRIX_SOURCES src/backends/atrace/backend_atrace.c)
+    list(APPEND TRIX_DEFINES TRIX_BACKEND_ATRACE)
+endif()
+
 # --- Shared library target ---
 add_library(trix SHARED ${TRIX_SOURCES})
 
@@ -110,6 +136,13 @@ if(TRIX_BACKEND_ETW)
     # TraceLoggingProvider.h requires C++ in some SDK versions
     set_source_files_properties(src/backends/etw/backend_etw.c
         PROPERTIES LANGUAGE CXX)
+endif()
+
+if(TRIX_BACKEND_LTTNG)
+    # Link against lttng-ust (handles -llttng-ust and include dirs).
+    # The tracepoint header must be found via the source directory.
+    target_link_libraries(trix PRIVATE PkgConfig::LTTNG_UST)
+    target_include_directories(trix PRIVATE src/backends/lttng)
 endif()
 
 # --- Tests ---

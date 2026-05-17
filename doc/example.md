@@ -8,14 +8,13 @@ apt install cmake gcc g++ make
 ```
 
 ### Per-backend (optional — only needed at runtime, not to compile)
-| Backend | Runtime requirement |
-|---------|-------------------|
-| ftrace  | Root or write access to tracefs |
-| perf    | `perf` tool (`apt install linux-tools-$(uname -r)`) |
-| itt     | Intel VTune installed and running |
-| etw     | Windows only — built into the OS |
-
-No extra packages are needed to **compile** any backend.
+| Backend | Build dependency | Runtime requirement |
+|---------|-----------------|---------------------|
+| ftrace  | none            | Root or write access to tracefs |
+| perf    | none            | `perf` tool (`apt install linux-tools-$(uname -r)`) |
+| itt     | none (fetched)  | Intel VTune installed and running |
+| etw     | Windows only — built into the OS | — |
+| lttng   | `liblttng-ust-dev` | `lttng-tools` (`apt install lttng-tools`) |
 
 ---
 
@@ -23,6 +22,13 @@ No extra packages are needed to **compile** any backend.
 
 ```bash
 cmake -B build
+cmake --build build
+```
+
+To enable the LTTng backend (requires `liblttng-ust-dev`):
+```bash
+apt install liblttng-ust-dev
+cmake -B build -DTRIX_BACKEND_LTTNG=ON
 cmake --build build
 ```
 
@@ -79,6 +85,9 @@ TRIX_BACKEND=perf ./build/tests/test_basic
 
 # itt backend (VTune must be running)
 TRIX_BACKEND=itt ./build/tests/test_basic
+
+# lttng backend (session must be running, see below)
+TRIX_BACKEND=lttng ./build/tests/test_basic
 
 # Unknown backend — crashes immediately with a message
 TRIX_BACKEND=wrong ./build/tests/test_basic
@@ -311,6 +320,86 @@ vtune -report summary -format=csv -result-dir /tmp/trix_vtune
 
 ```bash
 vtune-gui /tmp/trix_vtune &
+```
+
+---
+
+## LTTng backend (Linux only)
+
+Records structured **CTF** (Common Trace Format) binary events via LTTng-UST
+user-space tracepoints. Events are stored to disk by `lttng-sessiond` with
+nanosecond timestamps and can be inspected with `babeltrace2` or
+**Trace Compass** (Eclipse-based GUI).
+
+Provider name: `trix`  
+Events: `frame_begin`, `frame_end`, `algo_begin`, `algo_end`,
+        `data_int`, `data_float`, `data_string`
+
+### Install
+
+```bash
+# Build dependency
+apt install liblttng-ust-dev
+
+# Runtime tools
+apt install lttng-tools babeltrace2
+```
+
+### Build with LTTng support
+
+```bash
+cmake -B build -DTRIX_BACKEND_LTTNG=ON
+cmake --build build
+```
+
+### Capture
+
+```bash
+# Create and configure a session
+lttng create trix-session
+lttng enable-event --userspace 'trix:*'
+lttng start
+
+# Run your application
+TRIX_BACKEND=lttng LD_LIBRARY_PATH=$PWD/build ./build/tests/test_basic
+
+# Stop the session
+lttng stop
+lttng destroy
+```
+
+### View with babeltrace2 (terminal)
+
+```bash
+babeltrace2 ~/lttng-traces/trix-session*
+```
+
+Example output:
+```
+[15:01:00.123456789] (+0.000000001) hostname trix:frame_begin: { frame_num = 0 }
+[15:01:00.123456820] (+0.000000031) hostname trix:algo_begin: { name = "encode" }
+[15:01:00.123456900] (+0.000000080) hostname trix:data_int: { key = "width", value = 1920 }
+[15:01:00.123456910] (+0.000000010) hostname trix:data_int: { key = "height", value = 1080 }
+[15:01:00.123456950] (+0.000000040) hostname trix:data_float: { key = "fps", value = 29.97 }
+[15:01:00.123456970] (+0.000000020) hostname trix:data_string: { key = "codec", value = "h264" }
+[15:01:00.123457010] (+0.000000040) hostname trix:algo_end: { name = "encode" }
+[15:01:00.123457020] (+0.000000010) hostname trix:frame_end: { frame_num = 0 }
+```
+
+### View with Trace Compass (GUI)
+
+1. Install [Trace Compass](https://www.eclipse.org/tracecompass/)
+2. Open the trace directory: `~/lttng-traces/trix-session*/`
+3. The **LTTng-UST** analysis view shows per-thread event timelines
+
+### Live view during capture
+
+```bash
+lttng create trix-live --live
+lttng enable-event --userspace 'trix:*'
+lttng start
+# In another terminal:
+babeltrace2 --input-format=lttng-live net://localhost/host/$(hostname)/trix-live
 ```
 
 ---
