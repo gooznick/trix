@@ -2,6 +2,36 @@
 
 All notable changes to trix are documented here.
 
+## [1.1.1] — 2026-05-24
+
+### Startup diagnostics
+
+- trix prints a one-line summary to stderr on init:
+  `trix 1.1.1  backend=ftrace    available=[ftrace perf lttng ]`
+- `TRIX_QUIET=1` suppresses the print.
+- Unknown-backend error now includes the available backends list.
+
+### Demo
+
+- `--cpus N` flag: restrict all threads to CPUs 0 through N−1 (default: 3; 0 = no restriction).
+  Cross-platform: Linux uses `pthread_setaffinity_np`, Windows uses `SetThreadAffinityMask`.
+
+### Scripts
+
+- `capture_ftrace_pre.sh` / `capture_ftrace_post.sh` simplified: no command argument;
+  pre sets up tracefs and starts tracing, post stops and saves `trix_ftrace_YYYYMMDD_HHMMSS.txt`.
+- `capture_ftrace.sh` removed.
+
+### Documentation
+
+- New `doc/backends/ftrace.md`: ftrace guide — kernel config (Ubuntu, Yocto), Docker,
+  capture with/without trix, Perfetto visualisation, wire format reference.
+- New `doc/viewers/perfetto.md`: Perfetto guide — navigation, supported formats,
+  self-hosting on internal networks via perfetto-compose.
+- New `doc/tracing.md`: main tracing guide with backend comparison table.
+
+---
+
 ## [1.1.0] — 2026-05-17
 
 ### New backends

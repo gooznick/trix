@@ -10,13 +10,22 @@ A unified C/C++ tracing API. Instrument your code once, choose the backend at ru
 #include <trix/trix.h>
 
 {
-    TRIX_FRAME_SCOPE(42);
+    uint64_t frame(0);
+    while (true)
     {
-        TRIX_ALGO_SCOPE("encode");
-        trix_data_int("width", 1920);
-        trix_data_float("fps", 29.97f);
-    } // trix_algo_end("encode")
-} // trix_frame_end(42)
+        TRIX_FRAME_SCOPE(frame);
+        {
+            myapp::Frame currentFrame;
+            myapp::getFrame(currentFrame, frame);
+            {
+                TRIX_ALGO_SCOPE("encode");
+                myapp::encode(currentFrame);
+            }
+            TRIX_DATA_FLOAT("std", currentFrame->Std());
+            TRIX_DATA_INT("features", currentFrame->Features());
+        } 
+    }
+} 
 ```
 
 ```bash
@@ -38,19 +47,7 @@ TRIX_BACKEND=etw     myapp.exe # Windows ETW
 
 ## API
 
-### C
-
-```c
-void trix_frame_begin(uint64_t frame_num);
-void trix_frame_end  (uint64_t frame_num);
-void trix_algo_begin (const char* name);
-void trix_algo_end   (const char* name);
-void trix_data_int   (const char* key, uint64_t value);
-void trix_data_float (const char* key, float value);
-void trix_data_string(const char* key, const char* value);
-```
-
-### Macros
+### Macros (C and C++)
 
 ```c
 TRIX_FRAME_BEGIN(n)      TRIX_FRAME_END(n)
@@ -64,11 +61,11 @@ TRIX_DATA_INT(k, v)      TRIX_DATA_FLOAT(k, v)    TRIX_DATA_STRING(k, v)
 #include <trix/trix.h>
 
 void process(uint64_t frame) {
-    TRIX_FRAME_SCOPE(frame);       // calls trix_frame_begin/end
+    TRIX_FRAME_SCOPE(frame);       // calls TRIX_FRAME_BEGIN/END on scope exit
 
     {
-        TRIX_ALGO_SCOPE("decode"); // calls trix_algo_begin/end on scope exit
-        trix_data_string("codec", "h264");
+        TRIX_ALGO_SCOPE("decode"); // calls TRIX_ALGO_BEGIN/END on scope exit
+        TRIX_DATA_STRING("codec", "h264");
     }
 }
 ```
@@ -81,6 +78,7 @@ void process(uint64_t frame) {
 |---------|----------|--------|-------------|
 | `ftrace` | Linux | `cat /sys/kernel/tracing/trace`, trace-cmd, kernelshark | none (kernel) |
 | `perf`   | Linux | `perf script` | `perf` tool |
+| `lttng`  | Linux | `lttng view`, Babeltrace, Trace Compass | `liblttng-ust-dev` (auto-detected at configure time) |
 | `itt`    | Linux + Windows | Intel VTune | VTune (optional — no-op if absent) |
 | `etw`    | Windows | WPA, logman+tracerpt | none (built into Windows) |
 
@@ -168,4 +166,5 @@ target_compile_definitions(myapp PRIVATE TRIX_ENABLED)
 
 ## Documentation
 
-- [doc/example.md](doc/example.md) — step-by-step guide: build, run, activate each backend, view output, install requirements for VTune and ETW
+- [doc/tracing.md](doc/tracing.md) — tracing guide: instrument your code, backend comparison (overhead, strings, viewers, privilege), links to per-backend and per-viewer references
+- [doc/example.md](doc/example.md) — step-by-step build and run examples for every backend

@@ -31,11 +31,52 @@
 
 #include <opencv2/imgproc.hpp>
 
-#ifdef __linux__
+#include <cstdlib>
+#include <cstring>
+
+#if defined(__linux__)
 #  include <pthread.h>
+#  include <sched.h>
 #  define SET_THREAD_NAME(name) pthread_setname_np(pthread_self(), (name))
+static void set_thread_affinity(std::thread& t, int num_cpus)
+{
+    if (num_cpus == 0) return;
+    cpu_set_t mask;
+    CPU_ZERO(&mask);
+    for (int i = 0; i < num_cpus; ++i)
+        CPU_SET(i, &mask);
+    pthread_setaffinity_np(t.native_handle(), sizeof(mask), &mask);
+}
+static void set_cpu_affinity(int num_cpus)
+{
+    if (num_cpus == 0) return;
+    cpu_set_t mask;
+    CPU_ZERO(&mask);
+    for (int i = 0; i < num_cpus; ++i)
+        CPU_SET(i, &mask);
+    pthread_setaffinity_np(pthread_self(), sizeof(mask), &mask);
+}
+#elif defined(_WIN32)
+#  include <windows.h>
+#  define SET_THREAD_NAME(name) (void)(name)
+static void set_thread_affinity(std::thread& t, int num_cpus)
+{
+    if (num_cpus == 0) return;
+    DWORD_PTR mask = (num_cpus >= 64) ? ~(DWORD_PTR)0
+                                      : ((DWORD_PTR)1 << num_cpus) - 1;
+    SetThreadAffinityMask(t.native_handle(), mask);
+}
+static void set_cpu_affinity(int num_cpus)
+{
+    if (num_cpus == 0) return;
+    DWORD_PTR mask = (num_cpus >= 64) ? ~(DWORD_PTR)0
+                                      : ((DWORD_PTR)1 << num_cpus) - 1;
+    SetThreadAffinityMask(GetCurrentThread(), mask);
+}
 #else
 #  define SET_THREAD_NAME(name) (void)(name)
+static void set_thread_affinity(std::thread&, int) {}
+static void set_cpu_affinity(int) {}
 #endif
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,7 +102,7 @@ static constexpr float  MIN_SCORE      = 0.5f; // NCC threshold for good matches
 
 class ThreadPool {
 public:
-    explicit ThreadPool(int n) {
+    explicit ThreadPool(int n, int num_cpus = 0) {
         for (int i = 0; i < n; ++i) {
             workers_.emplace_back([this, i] {
                 char name[16];
@@ -69,6 +110,9 @@ public:
                 SET_THREAD_NAME(name);
                 run();
             });
+            // Set affinity from the parent thread so it takes effect before
+            // the worker is ever scheduled, avoiding a race window.
+            set_thread_affinity(workers_.back(), num_cpus);
         }
     }
 
@@ -257,9 +301,18 @@ static cv::Point2f estimate_translation(std::vector<PatchResult>& results)
 //  Main
 // ─────────────────────────────────────────────────────────────────────────────
 
-int main()
+int main(int argc, char* argv[])
 {
+    int num_cpus = 3;
+    for (int i = 1; i + 1 < argc; ++i) {
+        if (std::strcmp(argv[i], "--cpus") == 0) {
+            num_cpus = std::atoi(argv[i + 1]);
+            break;
+        }
+    }
+
     SET_THREAD_NAME("trix_demo");
+    set_cpu_affinity(num_cpus);
 
     using Clock = std::chrono::steady_clock;
     const auto frame_period = std::chrono::duration<double>(1.0 / TARGET_HZ);
@@ -267,11 +320,16 @@ int main()
     const cv::Mat              base_image  = make_reference_image();
     const std::vector<cv::Point> patch_grid = make_patch_grid();
 
-    std::printf("trix demo  —  image tracking pipeline\n");
-    std::printf("  %dx%d image, %zu patches, %d workers, %.0f Hz, %d frames\n\n",
-                IMG_W, IMG_H, patch_grid.size(), NUM_WORKERS, TARGET_HZ, NUM_FRAMES);
+    char cpu_str[32];
+    if (num_cpus == 0)      std::snprintf(cpu_str, sizeof(cpu_str), "all CPUs");
+    else if (num_cpus == 1) std::snprintf(cpu_str, sizeof(cpu_str), "CPU 0 only");
+    else                    std::snprintf(cpu_str, sizeof(cpu_str), "CPUs 0-%d", num_cpus - 1);
 
-    ThreadPool pool(NUM_WORKERS);
+    std::printf("trix demo  —  image tracking pipeline\n");
+    std::printf("  %dx%d image, %zu patches, %d workers, %.0f Hz, %d frames, %s\n\n",
+                IMG_W, IMG_H, patch_grid.size(), NUM_WORKERS, TARGET_HZ, NUM_FRAMES, cpu_str);
+
+    ThreadPool pool(NUM_WORKERS, num_cpus);
     std::mt19937 rng(42);
 
     cv::Mat prev = base_image.clone();

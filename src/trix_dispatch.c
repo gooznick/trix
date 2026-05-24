@@ -44,6 +44,36 @@ const trix_vtable_t* trix_backend_atrace_init(void);
 /* --- Global vtable — written once in constructor, read-only after --- */
 trix_vtable_t g_trix_vtable;
 
+/* --- Available backends — built at compile time --- */
+static const char* const s_trix_available =
+#ifdef TRIX_BACKEND_FTRACE
+    "ftrace "
+#endif
+#ifdef TRIX_BACKEND_PERF
+    "perf "
+#endif
+#ifdef TRIX_BACKEND_ITT
+    "itt "
+#endif
+#ifdef TRIX_BACKEND_ETW
+    "etw "
+#endif
+#ifdef TRIX_BACKEND_LTTNG
+    "lttng "
+#endif
+#ifdef TRIX_BACKEND_ATRACE
+    "atrace "
+#endif
+    "";
+
+/* --- Startup diagnostic print --- */
+static void trix_print_info(const char* active)
+{
+    if (getenv("TRIX_QUIET")) return;
+    fprintf(stderr, "trix %s  backend=%-8s  available=[%s]\n",
+            TRIX_VERSION_STRING, active ? active : "none", s_trix_available);
+}
+
 /* --- Backend selection — shared between constructor implementations --- */
 static void trix_select_backend(void) {
     const char* backend = getenv("TRIX_BACKEND");
@@ -83,11 +113,13 @@ static void trix_select_backend(void) {
     }
 #endif
     else {
-        fprintf(stderr, "trix: unknown backend '%s'\n", backend);
+        fprintf(stderr, "trix: unknown backend '%s'  available=[%s]\n",
+                backend, s_trix_available);
         abort();
     }
 
     g_trix_vtable = *vt;
+    trix_print_info(backend);
 }
 
 /* --- Platform-specific library init/fini --- */
