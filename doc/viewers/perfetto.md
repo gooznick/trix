@@ -88,27 +88,18 @@ shows the exact value and timestamp.
 
 ## Using on an internal network
 
-Build the UI once using [perfetto-compose](https://github.com/rse-ops/perfetto-compose).
-The build clones the Perfetto source and compiles the UI inside Docker — it takes
-a few minutes on first run.
+A `Dockerfile` that builds the Perfetto web UI is provided in `tools/perfetto-ui/`.
+The build clones Perfetto v55.3 and compiles the frontend — it takes a few minutes
+on first run.
 
 ```bash
-git clone https://github.com/rse-ops/perfetto-compose.git
-cd perfetto-compose
-docker build -t perfetto-ui .
+docker build -t perfetto-ui tools/perfetto-ui/
 ```
 
-Extract the built static files and serve them with Python:
+Run the UI:
 
 ```bash
-docker create --name tmp-perfetto perfetto-ui
-docker cp tmp-perfetto:/opt/perfetto/ui/out/dist/. ./perfetto-ui/
-docker rm tmp-perfetto
-
-python3 -m http.server 8080 --directory ./perfetto-ui
+docker run -it --rm --network=host perfetto-ui:latest
 ```
 
-Open **http://localhost:8080** in a browser.
-
-The `perfetto-ui/` directory can be copied to any machine on the internal
-network and served the same way — no Docker needed on the target machine.
+Then open **http://localhost:10000** in a browser.

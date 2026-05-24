@@ -2,6 +2,20 @@
 
 All notable changes to trix are documented here.
 
+## [1.1.2] — 2026-05-24
+
+### Documentation
+
+- `doc/viewers/perfetto.md`: internal network section rewritten — provides
+  `tools/perfetto-ui/Dockerfile` that builds the Perfetto v55.3 web UI;
+  run with `docker run --network=host perfetto-ui:latest`, open `http://localhost:10000`.
+
+### Tools
+
+- `tools/perfetto-ui/Dockerfile`: self-contained Docker build for the Perfetto UI.
+
+---
+
 ## [1.1.1] — 2026-05-24
 
 ### Startup diagnostics
