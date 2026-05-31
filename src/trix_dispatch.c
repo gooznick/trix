@@ -70,7 +70,7 @@ static const char* const s_trix_available =
 static void trix_print_info(const char* active)
 {
     if (getenv("TRIX_QUIET")) return;
-    fprintf(stderr, "trix %s  backend=%-8s  available=[%s]\n",
+    fprintf(stderr, "trix %s  TRIX_BACKEND=%-8s  available=[%s]\n",
             TRIX_VERSION_STRING, active ? active : "none", s_trix_available);
 }
 

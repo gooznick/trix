@@ -121,7 +121,7 @@ export SUDO=""
 ### From the filesystem only (image not running)
 
 When you have a Yocto rootfs or image mounted on a host but the target is not
-booted, check the kernel config stored in the image:
+booted,/mage:
 
 ```bash
 # If the image was built with CONFIG_IKCONFIG_PROC=y:
@@ -335,7 +335,7 @@ TRIX_FTRACE_OUT=my_trace.txt sudo sh ./scripts/capture_ftrace_post.sh
 When trix initialises it prints a one-line summary to stderr:
 
 ```
-trix 1.1.0  backend=ftrace    available=[ftrace perf itt atrace ]
+trix 1.1.0  TRIX_BACKEND=ftrace    available=[ftrace perf itt atrace ]
 ```
 
 This confirms which backend is active and which were compiled into the library.

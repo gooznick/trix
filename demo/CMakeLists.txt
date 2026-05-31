@@ -20,3 +20,11 @@ add_executable(trix_demo demo.cpp)
 target_link_libraries(trix_demo PRIVATE ${_trix_target} ${OpenCV_LIBS})
 target_compile_definitions(trix_demo PRIVATE TRIX_ENABLED)
 target_compile_features(trix_demo PRIVATE cxx_std_17)
+
+# Always emit debug info, regardless of CMAKE_BUILD_TYPE
+target_compile_options(trix_demo PRIVATE
+    $<IF:$<CXX_COMPILER_ID:MSVC>,/Zi,-g>
+)
+target_link_options(trix_demo PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/DEBUG>
+)

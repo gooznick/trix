@@ -2,6 +2,31 @@
 
 All notable changes to trix are documented here.
 
+## [1.2.0] — 2026-05-31
+
+### Documentation
+
+- `doc/backends/vtune.md`: new VTune/ITT backend guide with screenshots.
+
+### Backends
+
+- `src/backends/itt/backend_itt.c`: `trix_data_int` / `trix_data_float` now use
+  `__itt_counter_create_typed` + `__itt_counter_set_value` — visible as counter
+  tracks in the VTune Timeline.
+- `src/trix_dispatch.c`: startup line now prints `TRIX_BACKEND=` instead of `backend=`.
+
+### Scripts
+
+- `scripts/capture_vtune.sh`: replaces the old pre/post pair — launches VTune + app
+  via `vtune -- <cmd>` and returns immediately.
+- `scripts/capture_vtune_pre.sh`, `scripts/capture_vtune_post.sh`: removed.
+
+### Build
+
+- `demo/CMakeLists.txt`: always emit debug info (`-g` / `/Zi`) regardless of build type.
+
+---
+
 ## [1.1.3] — 2026-05-31
 
 ### Tools
