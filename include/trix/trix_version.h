@@ -5,8 +5,8 @@
 
 #define TRIX_VERSION_MAJOR 1
 #define TRIX_VERSION_MINOR 1
-#define TRIX_VERSION_PATCH 2
-#define TRIX_VERSION_STRING "1.1.2"
+#define TRIX_VERSION_PATCH 3
+#define TRIX_VERSION_STRING "1.1.3"
 
 /* Single integer: 10000*major + 100*minor + patch */
 #define TRIX_VERSION_NUMBER \

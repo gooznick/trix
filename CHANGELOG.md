@@ -2,6 +2,15 @@
 
 All notable changes to trix are documented here.
 
+## [1.1.3] — 2026-05-31
+
+### Tools
+
+- `tools/perfetto-ui/Dockerfile`: remove password-protected test zip files
+  (`Different Encryptions.zip`, `test_encrypted.zip`) left over from zlib test data.
+
+---
+
 ## [1.1.2] — 2026-05-24
 
 ### Documentation

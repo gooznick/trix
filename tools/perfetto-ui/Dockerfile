@@ -13,4 +13,9 @@ RUN tools/install-build-deps --ui
 # Build the web UI
 RUN ui/build
 
+# Remove password-protected test zip files (zlib test data, not needed at runtime)
+RUN rm -f \
+    "buildtools/zlib/google/test/data/Different Encryptions.zip" \
+    "buildtools/zlib/google/test/data/test_encrypted.zip"
+
 ENTRYPOINT ["./ui/run-dev-server", "--serve-host", "0.0.0.0"]
