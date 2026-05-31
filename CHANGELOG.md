@@ -2,6 +2,21 @@
 
 All notable changes to trix are documented here.
 
+## [1.3.0] — 2026-05-31
+
+### Changed
+
+- perf backend: string args now packed as uint64 (first 8 chars, little-endian) instead of raw pointers — gives readable names in traces.
+- `capture_perf_pre.sh`: now starts system-wide `perf record -a` in background; user runs app separately (like ftrace pattern).
+- `capture_perf_post.sh`: now stops recording, exports, and runs as sudo.
+
+### Added
+
+- perf: `data_string` events recorded and shown as a dedicated "Data" track in Perfetto.
+- `perf_to_perfetto.py`: `unpack_str8`, `bits_to_float`, `data_string` handler, "Data" process track.
+- demo: `TRIX_DATA_INT`, `TRIX_DATA_FLOAT`, `TRIX_DATA_STRING` per frame; sub-pixel NCC refinement for float translation estimates.
+- `doc/backends/perf.md`: full perf/SDT backend guide with Perfetto screenshot.
+
 ## [1.2.0] — 2026-05-31
 
 ### Documentation

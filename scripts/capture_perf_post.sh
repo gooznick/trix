@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
-# capture_perf_post.sh — export perf data to text and print converter hint.
+# capture_perf_post.sh — stop perf recording and export to text.
 #
-# Run this after capture_perf_pre.sh.
+# Run after capture_perf_pre.sh and your application.
 #
 # Usage:
-#   sh ./scripts/capture_perf_post.sh
+#   sudo sh ./scripts/capture_perf_post.sh
 #
 # Environment variables:
 #   TRIX_PERF_OUT   Override the output text file path.
@@ -22,13 +22,21 @@ if [ ! -f "${STATE_FILE}" ]; then
     exit 1
 fi
 
-# Load PERF_DATA and OUTPUT from state file
 . "${STATE_FILE}"
 
-# Allow env var override of output path
 if [ -n "${TRIX_PERF_OUT:-}" ]; then
     OUTPUT="${TRIX_PERF_OUT}"
 fi
+
+# ── Stop recording ────────────────────────────────────────────────────────────
+
+echo "Stopping perf (PID ${PERF_PID})..."
+kill -INT "${PERF_PID}" 2>/dev/null || true
+while kill -0 "${PERF_PID}" 2>/dev/null; do
+    sleep 0.2
+done
+echo "  Recording stopped."
+echo ""
 
 if [ ! -f "${PERF_DATA}" ]; then
     echo "ERROR: perf data file '${PERF_DATA}' not found." >&2
@@ -44,7 +52,6 @@ perf script -i "${PERF_DATA}" \
     --show-mmap-events \
     > "${OUTPUT}"
 
-# Fix ownership if running under sudo
 if [ -n "${SUDO_USER:-}" ]; then
     chown "${SUDO_USER}:" "${PERF_DATA}" "${OUTPUT}" 2>/dev/null || true
 fi

@@ -257,11 +257,27 @@ static PatchResult search_patch(const cv::Mat& prev,
     cv::Point maxLoc;
     cv::minMaxLoc(ncc_map, nullptr, &maxVal, nullptr, &maxLoc);
 
-    // maxLoc is the top-left of the best match inside srch_rect.
-    // Displacement relative to the reference centre:
-    //   (srch_rect.x + maxLoc.x + half) - ref_centre.x  =  maxLoc.x - R
+    // Sub-pixel refinement: parabolic interpolation around the NCC peak.
+    float dx = 0.f, dy = 0.f;
+    if (maxLoc.x > 0 && maxLoc.x < ncc_map.cols - 1) {
+        float vm = ncc_map.at<float>(maxLoc.y, maxLoc.x - 1);
+        float vp = ncc_map.at<float>(maxLoc.y, maxLoc.x + 1);
+        float vc = static_cast<float>(maxVal);
+        float denom = vm - 2.f * vc + vp;
+        if (std::abs(denom) > 1e-6f)
+            dx = 0.5f * (vm - vp) / denom;
+    }
+    if (maxLoc.y > 0 && maxLoc.y < ncc_map.rows - 1) {
+        float vm = ncc_map.at<float>(maxLoc.y - 1, maxLoc.x);
+        float vp = ncc_map.at<float>(maxLoc.y + 1, maxLoc.x);
+        float vc = static_cast<float>(maxVal);
+        float denom = vm - 2.f * vc + vp;
+        if (std::abs(denom) > 1e-6f)
+            dy = 0.5f * (vm - vp) / denom;
+    }
+
     return {
-        { static_cast<float>(maxLoc.x - R), static_cast<float>(maxLoc.y - R) },
+        { static_cast<float>(maxLoc.x - R) + dx, static_cast<float>(maxLoc.y - R) + dy },
         static_cast<float>(maxVal)
     };
 }
@@ -373,8 +389,18 @@ int main(int argc, char* argv[])
         // ── 4. Estimate inter-frame translation ───────────────────────────
         cv::Point2f est = estimate_translation(results);
 
-        trix_data_float("est_tx", est.x);
-        trix_data_float("est_ty", est.y);
+        int good_patches = 0;
+        for (const auto& r : results)
+            if (r.score >= MIN_SCORE) ++good_patches;
+
+        const char* quality = (good_patches > (int)patch_grid.size() * 8 / 10) ? "good"
+                            : (good_patches > (int)patch_grid.size() * 5 / 10) ? "ok"
+                                                                                : "poor";
+        TRIX_DATA_INT("frame",        static_cast<uint64_t>(frame));
+        TRIX_DATA_INT("good_patches", static_cast<uint64_t>(good_patches));
+        TRIX_DATA_FLOAT("est_tx",     est.x);
+        TRIX_DATA_FLOAT("est_ty",     est.y);
+        TRIX_DATA_STRING("quality",   quality);
 
         sum_tx += est.x;
         sum_ty += est.y;

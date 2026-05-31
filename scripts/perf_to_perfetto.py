@@ -11,16 +11,14 @@ Usage:
   python3 scripts/perf_to_perfetto.py INPUT.txt [-o OUTPUT.pftrace]
 
 Track layout:
-  pid=1  Thread spans   (frame_N, algo_0..N nested duration spans)
+  pid=1  Thread spans   (frame_N, algo spans nested by thread)
   pid=2  CPU lanes      (which thread ran on which CPU, from sched_switch)
   pid=3  Counters       (data_float / data_int values)
 
-NOTE — algo span names:
-  The perf backend records string pointers, not string content.
-  Spans with the same pointer value are the same algo within one run.
-  The converter assigns stable short names: algo_0, algo_1, ...
-  and prints a legend mapping name -> pointer to stdout.
-  Use:  strings <binary> | grep -i <name>   to identify them manually.
+NOTE — string encoding:
+  The perf backend packs the first 8 chars of each string into a uint64
+  (little-endian).  This converter decodes them back to readable names.
+  Names longer than 8 chars are truncated (e.g. "correlate" -> "correlat").
 """
 
 from __future__ import print_function
@@ -28,6 +26,7 @@ from __future__ import print_function
 import sys
 import re
 import json
+import struct
 import argparse
 from collections import defaultdict
 
@@ -65,6 +64,25 @@ def parse_int_args(trace):
     return {int(k): int(v) for k, v in re.findall(r'arg(\d+)=(-?\d+)', trace)}
 
 
+def unpack_str8(val):
+    """Decode a little-endian packed 8-char string from a uint64 integer."""
+    chars = []
+    for i in range(8):
+        b = (val >> (i * 8)) & 0xff
+        if b == 0:
+            break
+        chars.append(chr(b) if 32 <= b < 127 else '?')
+    return ''.join(chars) if chars else str(val)
+
+
+def bits_to_float(bits):
+    """Reinterpret the lower 32 bits of an integer as an IEEE 754 float."""
+    try:
+        return struct.unpack('f', struct.pack('I', bits & 0xFFFFFFFF))[0]
+    except Exception:
+        return float(bits)
+
+
 # ---------------------------------------------------------------------------
 # Conversion
 # ---------------------------------------------------------------------------
@@ -86,20 +104,6 @@ def convert(input_path):
 
     def us(ts):
         return (ts - min_ts) * 1e6
-
-    # --- opaque-name registries (pointer -> short label) ---
-    algo_names    = {}   # ptr -> "algo_N"
-    counter_names = {}   # ptr -> "ctr_N"
-
-    def algo_label(ptr):
-        if ptr not in algo_names:
-            algo_names[ptr] = "algo_{0}".format(len(algo_names))
-        return algo_names[ptr]
-
-    def counter_label(ptr):
-        if ptr not in counter_names:
-            counter_names[ptr] = "ctr_{0}".format(len(counter_names))
-        return counter_names[ptr]
 
     # --- per-TID stacks for begin/end matching ---
     frame_stack = defaultdict(list)   # tid -> [(ts, frame_num)]
@@ -154,11 +158,8 @@ def convert(input_path):
 
         elif event == 'sdt_trix:algo_end':
             if algo_stack[tid]:
-                begin_ts, ptr = algo_stack[tid].pop()
-                args = parse_int_args(trace)
-                # prefer end-event ptr for label assignment (same as begin)
-                label = algo_label(args.get(1, ptr) or ptr)
-                X(label, 1, tid, begin_ts, ts)
+                begin_ts, packed = algo_stack[tid].pop()
+                X(unpack_str8(packed), 1, tid, begin_ts, ts)
 
         elif event == 'sched:sched_switch':
             m_prev = re.search(r'prev_pid=(\d+)', trace)
@@ -180,11 +181,10 @@ def convert(input_path):
             if next_pid != 0:
                 cpu_on[cpu] = (ts, next_pid, next_comm)
 
-        elif event in ('sdt_trix:data_float', 'sdt_trix:data_int'):
+        elif event == 'sdt_trix:data_int':
             args  = parse_int_args(trace)
-            key   = args.get(1, 0)
+            name  = unpack_str8(args.get(1, 0))
             value = args.get(2, 0)
-            name  = counter_label(key)
             trace_events.append({
                 "name": name, "ph": "C",
                 "pid": 1, "tid": tid,
@@ -192,7 +192,31 @@ def convert(input_path):
                 "args": {name: value},
             })
 
-    # --- close any CPU slices still open at end-of-trace ---
+        elif event == 'sdt_trix:data_float':
+            args  = parse_int_args(trace)
+            name  = unpack_str8(args.get(1, 0))
+            value = bits_to_float(args.get(2, 0))
+            trace_events.append({
+                "name": name, "ph": "C",
+                "pid": 1, "tid": tid,
+                "ts": us(ts),
+                "args": {name: value},
+            })
+
+        elif event == 'sdt_trix:data_string':
+            args  = parse_int_args(trace)
+            name  = unpack_str8(args.get(1, 0))
+            value = unpack_str8(args.get(2, 0))
+            # Use pid=4, tid=hash(name) so each key gets its own visible row
+            row_tid = abs(hash(name)) % 100000
+            trace_events.append({
+                "name": value, "ph": "X",
+                "pid": 4, "tid": row_tid,
+                "ts": us(ts), "dur": 15000,
+                "args": {name: value},
+            })
+
+
     seen_cpus = set()
     for cpu_id, (sched_ts, sched_tid, sched_comm) in cpu_on.items():
         seen_cpus.add(cpu_id)
@@ -222,23 +246,27 @@ def convert(input_path):
         })
 
     # --- metadata: process names ---
-    for pid, pname in [(1, "Threads"), (2, "CPU Lanes")]:
+    for pid, pname in [(1, "Threads"), (2, "CPU Lanes"), (4, "Data")]:
         trace_events.append({
             "name": "process_name", "ph": "M",
             "pid": pid, "tid": 0,
             "args": {"name": pname},
         })
 
-    # --- print legend to stdout ---
-    if algo_names:
-        print("Algo span legend (same pointer = same algo within this run):")
-        for ptr, label in sorted(algo_names.items(), key=lambda x: x[1]):
-            print("  {0:<12s}  0x{1:x}".format(label, ptr))
-        print("  Resolve: strings <binary> | grep -i <keyword>")
-    if counter_names:
-        print("Counter legend:")
-        for ptr, label in sorted(counter_names.items(), key=lambda x: x[1]):
-            print("  {0:<12s}  0x{1:x}".format(label, ptr))
+    # --- metadata: Data row names (one row per string key) ---
+    seen_data_rows = {}
+    for ev in trace_events:
+        if ev.get("pid") == 4 and ev.get("ph") == "X":
+            row_tid = ev["tid"]
+            if row_tid not in seen_data_rows:
+                key = list(ev.get("args", {}).keys())
+                seen_data_rows[row_tid] = key[0] if key else str(row_tid)
+    for row_tid, key_name in seen_data_rows.items():
+        trace_events.append({
+            "name": "thread_name", "ph": "M",
+            "pid": 4, "tid": row_tid,
+            "args": {"name": key_name},
+        })
 
     return {"traceEvents": trace_events}
 
