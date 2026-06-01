@@ -2,6 +2,12 @@
 
 All notable changes to trix are documented here.
 
+## [1.3.1] — 2026-06-01
+
+### Added
+
+- `doc/docker.md`: new guide for using trix in Docker / containerised environments, covering all backends and the recommended ftrace-on-host approach for microservices.
+
 ## [1.3.0] — 2026-05-31
 
 ### Changed
