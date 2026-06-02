@@ -11,54 +11,37 @@
  *   TRIX_FILE_OUT env var  (if set)
  *   trix_YYYYMMDD_HHMMSS.atrace  (default, created in current directory)
  *
- * Does not require root.  Works on any Linux with glibc >= 2.17.
+ * Thread safety: write_event formats a complete line into a stack buffer and
+ * calls atrace_write() which uses a raw O_APPEND file descriptor.  On Linux,
+ * POSIX guarantees that write() on an O_APPEND fd is atomic — no mutex needed.
  */
 
-#define _GNU_SOURCE
-#include <fcntl.h>
 #include <inttypes.h>
-#include <pthread.h>
-#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/syscall.h>
-#include <time.h>
-#include <unistd.h>
 
+#include "atrace_platform.h"
 #include "../../trix_internal.h"
 
-static FILE*           g_file   = NULL;
-static int             g_pid    = 0;
-static char            g_comm[17] = "trix";   /* /proc/self/comm, max 15 chars + NUL */
-static pthread_mutex_t g_lock   = PTHREAD_MUTEX_INITIALIZER;
-
-/* ── Helpers ──────────────────────────────────────────────────────────────── */
-
-static double now_sec(void)
-{
-    struct timespec ts;
-    clock_gettime(CLOCK_BOOTTIME, &ts);
-    return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
-}
-
-static int gettid_impl(void)
-{
-    return (int)syscall(SYS_gettid);
-}
+static int   g_fd              = -1;
+static int   g_pid             = 0;
+static char  g_comm[17]        = "trix";  /* process short name, max 15 chars + NUL */
 
 /* ── Core writer ──────────────────────────────────────────────────────────── */
 
 static void write_event(const char* payload)
 {
-    double ts  = now_sec();
-    int    cpu = sched_getcpu();
-    int    tid = gettid_impl();
+    double ts  = atrace_now_sec();
+    int    cpu = atrace_getcpu();
+    int    tid = atrace_gettid();
 
-    pthread_mutex_lock(&g_lock);
-    fprintf(g_file, "       %s-%d  [%03d] .....%13.6f: tracing_mark_write: %s\n",
-            g_comm, tid, cpu < 0 ? 0 : cpu, ts, payload);
-    pthread_mutex_unlock(&g_lock);
+    char line[640];
+    int len = snprintf(line, sizeof(line),
+                       "       %s-%d  [%03d] .....%13.6f: tracing_mark_write: %s\n",
+                       g_comm, tid, cpu < 0 ? 0 : cpu, ts, payload);
+    if (len > 0 && len < (int)sizeof(line))
+        atrace_write(g_fd, line, len);
 }
 
 /* ── Backend functions ────────────────────────────────────────────────────── */
@@ -128,14 +111,13 @@ static const trix_vtable_t s_atrace_vtable = {
     atrace_data_string,
 };
 
-/* ── Destructor — flush and close file ───────────────────────────────────── */
+/* ── Destructor — close file ──────────────────────────────────────────────── */
 
 static void atrace_fini(void)
 {
-    if (g_file) {
-        fflush(g_file);
-        fclose(g_file);
-        g_file = NULL;
+    if (g_fd >= 0) {
+        atrace_close(g_fd);
+        g_fd = -1;
     }
 }
 
@@ -143,17 +125,8 @@ static void atrace_fini(void)
 
 const trix_vtable_t* trix_backend_atrace_init(void)
 {
-    g_pid = (int)getpid();
-
-    /* Read process comm name */
-    FILE* comm_f = fopen("/proc/self/comm", "r");
-    if (comm_f) {
-        if (fgets(g_comm, sizeof(g_comm), comm_f)) {
-            /* Strip trailing newline */
-            g_comm[strcspn(g_comm, "\n")] = '\0';
-        }
-        fclose(comm_f);
-    }
+    g_pid = atrace_getpid();
+    atrace_getcomm(g_comm, sizeof(g_comm));
 
     /* Determine output path */
     const char* out_path = getenv("TRIX_FILE_OUT");
@@ -161,7 +134,7 @@ const trix_vtable_t* trix_backend_atrace_init(void)
     if (!out_path || out_path[0] == '\0') {
         time_t now = time(NULL);
         struct tm tm_now;
-        localtime_r(&now, &tm_now);
+        atrace_localtime(now, &tm_now);
         snprintf(default_path, sizeof(default_path),
                  "trix_%04d%02d%02d_%02d%02d%02d.atrace",
                  tm_now.tm_year + 1900, tm_now.tm_mon + 1, tm_now.tm_mday,
@@ -169,21 +142,23 @@ const trix_vtable_t* trix_backend_atrace_init(void)
         out_path = default_path;
     }
 
-    g_file = fopen(out_path, "w");
-    if (!g_file) {
+    g_fd = atrace_open(out_path);
+    if (g_fd < 0) {
         perror("trix: atrace: cannot open output file");
         abort();
     }
 
     /* Write ftrace-compatible header so Perfetto recognises the format */
-    fprintf(g_file,
+    char header[256];
+    int  hlen = snprintf(header, sizeof(header),
             "# tracer: nop\n"
             "#\n"
             "# entries-in-buffer/entries-written: 0/0   #P:%d\n"
             "#\n"
             "#           TASK-PID     CPU#  |||||  TIMESTAMP  FUNCTION\n"
             "#              | |         |   |||||     |         |\n",
-            (int)sysconf(_SC_NPROCESSORS_ONLN));
+            atrace_getcpucount());
+    atrace_write(g_fd, header, hlen);
 
     fprintf(stderr, "trix: atrace: writing to %s\n", out_path);
 
@@ -191,3 +166,4 @@ const trix_vtable_t* trix_backend_atrace_init(void)
 
     return &s_atrace_vtable;
 }
+

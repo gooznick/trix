@@ -45,7 +45,9 @@ Each backend lives in `src/backends/<name>/backend_<name>.c` and must implement 
 const trix_vtable_t* trix_backend_<name>_init(void);
 ```
 
-It returns a pointer to a static `trix_vtable_t` with all 7 function pointers filled. `trix_internal.h` defines `trix_vtable_t` and `trix_backend_init_fn` — this header is the only internal header shared between dispatch and backends.
+It returns a pointer to a static `trix_vtable_t` with all 7 function pointers filled (frame_begin, frame_end, algo_begin, algo_end, data_int, data_float, data_string). `trix_internal.h` defines `trix_vtable_t` and `trix_backend_init_fn` — this header is the only internal header shared between dispatch and backends.
+
+`trix_version()` is an 8th public symbol but is **not** part of the vtable — it's implemented directly in `trix_dispatch.c` returning `TRIX_VERSION_STRING`.
 
 ### Adding a new backend
 
@@ -56,7 +58,7 @@ It returns a pointer to a static `trix_vtable_t` with all 7 function pointers fi
 
 ### Version
 
-Version is defined solely in `include/trix/trix_version.h` as three `#define`s (`TRIX_VERSION_MAJOR/MINOR/PATCH`). `CMakeLists.txt` reads these at configure time — **never set the version elsewhere**.
+Version is defined solely in `include/trix/trix_version.h`. When bumping, update all four items in that file: `TRIX_VERSION_MAJOR`, `TRIX_VERSION_MINOR`, `TRIX_VERSION_PATCH`, and `TRIX_VERSION_STRING` (the hardcoded string must stay in sync). `CMakeLists.txt` reads the three numeric defines at configure time — **never set the version elsewhere**.
 
 ## Key conventions
 

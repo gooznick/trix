@@ -15,6 +15,9 @@ endforeach()
 
 project(trix VERSION "${_TRIX_MAJOR}.${_TRIX_MINOR}.${_TRIX_PATCH}" LANGUAGES C CXX)
 
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
 # --- Platform-appropriate backend defaults ---
 if(WIN32)
     set(_TRIX_FTRACE_DEFAULT OFF)
@@ -88,7 +91,7 @@ if(TRIX_BACKEND_ITT)
         FetchContent_Populate(ittapi)
     endif()
     list(APPEND TRIX_SOURCES
-        src/backends/itt/backend_itt.c
+        src/backends/itt/backend_itt.cpp
         ${ITTAPI_DIR}/src/ittnotify/ittnotify_static.c
     )
     list(APPEND TRIX_DEFINES TRIX_BACKEND_ITT)
@@ -99,7 +102,7 @@ if(TRIX_BACKEND_ETW)
     if(NOT WIN32)
         message(FATAL_ERROR "TRIX_BACKEND_ETW is only supported on Windows")
     endif()
-    list(APPEND TRIX_SOURCES src/backends/etw/backend_etw.c)
+    list(APPEND TRIX_SOURCES src/backends/etw/backend_etw.cpp)
     list(APPEND TRIX_DEFINES TRIX_BACKEND_ETW)
 endif()
 
@@ -144,12 +147,6 @@ set_target_properties(trix PROPERTIES
     SOVERSION ${PROJECT_VERSION_MAJOR}
 )
 
-if(TRIX_BACKEND_ETW)
-    # TraceLoggingProvider.h requires C++ in some SDK versions
-    set_source_files_properties(src/backends/etw/backend_etw.c
-        PROPERTIES LANGUAGE CXX)
-endif()
-
 if(TRIX_BACKEND_LTTNG)
     # Link against lttng-ust (handles -llttng-ust and include dirs).
     # The tracepoint header must be found via the source directory.
@@ -158,8 +155,16 @@ if(TRIX_BACKEND_LTTNG)
 endif()
 
 # --- Tests ---
-enable_testing()
-add_subdirectory(tests)
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    set(_TRIX_TESTS_DEFAULT ON)
+else()
+    set(_TRIX_TESTS_DEFAULT OFF)
+endif()
+option(TRIX_BUILD_TESTS "Build trix tests" ${_TRIX_TESTS_DEFAULT})
+if(TRIX_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 # --- Demo (requires OpenCV) ---
 option(TRIX_BUILD_DEMO "Build the trix demo application (requires OpenCV)" OFF)

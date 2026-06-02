@@ -81,6 +81,7 @@ void process(uint64_t frame) {
 | `lttng`  | Linux | `lttng view`, Babeltrace, Trace Compass | `liblttng-ust-dev` (auto-detected at configure time) |
 | `itt`    | Linux + Windows | Intel VTune | VTune (optional — no-op if absent) |
 | `etw`    | Windows | WPA, logman+tracerpt | none (built into Windows) |
+| `atrace` | Linux + Windows | Perfetto UI | none (compiled in by default) |
 
 ---
 

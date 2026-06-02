@@ -19,5 +19,5 @@ target_compile_definitions(test_version PRIVATE TRIX_ENABLED)
 add_test(NAME version COMMAND test_version)
 
 add_executable(test_nop test_nop.c)
-target_include_directories(test_nop PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(test_nop PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 add_test(NAME nop COMMAND test_nop)
