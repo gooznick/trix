@@ -2,6 +2,22 @@
 
 All notable changes to trix are documented here.
 
+## [1.4.0] — 2026-06-02
+
+### Changed
+
+- **ITT backend**: `trix_data_int` / `trix_data_float` now use a lock-free
+  counter cache — each unique key maps to exactly one counter track in the
+  VTune timeline. Previously a new counter was created on every call, producing
+  duplicate tracks. Hot path (cache hit) is mutex-free.
+- **atrace backend**: all writes are now lock-free (uses `O_APPEND` atomic
+  kernel writes); removed the write mutex from the hot path.
+
+### Build
+
+- New `TRIX_BUILD_TESTS` CMake option (default `ON`) — set to `OFF` to skip
+  test compilation when embedding trix as a subdirectory.
+
 ## [1.3.1] — 2026-06-01
 
 ### Added
