@@ -60,6 +60,17 @@ It returns a pointer to a static `trix_vtable_t` with all 7 function pointers fi
 
 Version is defined solely in `include/trix/trix_version.h`. When bumping, update all four items in that file: `TRIX_VERSION_MAJOR`, `TRIX_VERSION_MINOR`, `TRIX_VERSION_PATCH`, and `TRIX_VERSION_STRING` (the hardcoded string must stay in sync). `CMakeLists.txt` reads the three numeric defines at configure time — **never set the version elsewhere**.
 
+### Changelog
+
+`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com) conventions. Rules:
+
+- **Only user-facing changes** — skip internal refactors (file renames, `.c`→`.cpp`, test rewrites, comment-only edits) unless they affect users.
+- **Sections**: use `### Added`, `### Changed`, `### Fixed`, `### Removed` — only include sections that apply.
+- **Version bump policy**: patch (`1.x.Y`) for additions/fixes that don't change existing behaviour; minor (`1.X.0`) for new backends, new public API, or behaviour changes.
+- **Date**: use the actual commit date (`YYYY-MM-DD`).
+- Add the new entry at the **top** of the file, immediately after the intro line.
+- Each entry should be 1–3 concise bullet points. Mention the affected file or API only when it helps the user find it.
+
 ## Key conventions
 
 - **No `TRIX_ENABLED` in the library itself** — the library always defines all 7 public symbols. `TRIX_ENABLED` is only for end-user code.
