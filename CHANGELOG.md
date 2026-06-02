@@ -2,6 +2,14 @@
 
 All notable changes to trix are documented here.
 
+## [1.4.1] — 2026-06-02
+
+### Added
+
+- `trix_build_info()`: new API function returning a greppable string with the
+  version and compiled-in backends, e.g. `trix/1.4.1 backends=[ftrace perf nop]`.
+  Inspect without running the library: `strings libtrix.so | grep "^trix/"`
+
 ## [1.4.0] — 2026-06-02
 
 ### Changed

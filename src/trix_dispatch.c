@@ -158,3 +158,28 @@ void trix_data_int(const char* key, uint64_t value)      { g_trix_vtable.data_in
 void trix_data_float(const char* key, float value)       { g_trix_vtable.data_float(key, value); }
 void trix_data_string(const char* key, const char* value){ g_trix_vtable.data_string(key, value); }
 const char* trix_version(void)                           { return TRIX_VERSION_STRING; }
+
+/* Greppable build-info string — inspect with: strings libtrix.so | grep "^trix/" */
+static const char s_trix_build_info[] =
+    "trix/" TRIX_VERSION_STRING " backends=["
+#ifdef TRIX_BACKEND_FTRACE
+    "ftrace "
+#endif
+#ifdef TRIX_BACKEND_PERF
+    "perf "
+#endif
+#ifdef TRIX_BACKEND_ITT
+    "itt "
+#endif
+#ifdef TRIX_BACKEND_ETW
+    "etw "
+#endif
+#ifdef TRIX_BACKEND_LTTNG
+    "lttng "
+#endif
+#ifdef TRIX_BACKEND_ATRACE
+    "atrace "
+#endif
+    "nop]";
+
+const char* trix_build_info(void)                        { return s_trix_build_info; }

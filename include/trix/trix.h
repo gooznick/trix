@@ -41,6 +41,7 @@ TRIX_API void trix_data_int(const char* key, uint64_t value);
 TRIX_API void trix_data_float(const char* key, float value);
 TRIX_API void trix_data_string(const char* key, const char* value);
 TRIX_API const char* trix_version(void);
+TRIX_API const char* trix_build_info(void);
 
 #define TRIX_FRAME_BEGIN(n)    trix_frame_begin(n)
 #define TRIX_FRAME_END(n)      trix_frame_end(n)
@@ -61,6 +62,7 @@ static inline void trix_data_int(const char* key, uint64_t value)         { (voi
 static inline void trix_data_float(const char* key, float value)          { (void)key; (void)value; }
 static inline void trix_data_string(const char* key, const char* value)   { (void)key; (void)value; }
 static inline const char* trix_version(void)                              { return TRIX_VERSION_STRING; }
+static inline const char* trix_build_info(void)                           { return "trix/" TRIX_VERSION_STRING " backends=[]"; }
 
 #define TRIX_FRAME_BEGIN(n)    ((void)(n))
 #define TRIX_FRAME_END(n)      ((void)(n))
