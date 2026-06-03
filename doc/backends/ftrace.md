@@ -424,3 +424,105 @@ any depth.
 
 Frame numbers appear in the span name: `frame_0`, `frame_1`, etc. The frame
 number is not stored separately — it is embedded in the `B` event name.
+
+---
+
+## trace-cmd
+
+`trace-cmd` is the standard user-space front-end for ftrace. Instead of
+manually writing to tracefs files, a single `trace-cmd record` command sets up
+the buffer, enables events, runs the target, and saves everything to a binary
+`.dat` file.
+
+There are two workflows depending on what viewer you use:
+
+| Workflow | Output | Viewer |
+|---|---|---|
+| `trace-cmd` → KernelShark | `.dat` (native) | KernelShark |
+| Raw tracefs commands | `.txt` (native) | Perfetto |
+
+> **Perfetto and the ftrace text format:** Perfetto's support for the ftrace
+> textual format is primarily for legacy compatibility and is maintained on a
+> best-effort basis. For best results use the raw tracefs workflow when
+> targeting Perfetto.
+
+### Install
+
+```bash
+sudo apt install trace-cmd
+```
+
+**Verify**
+
+```bash
+trace-cmd version
+```
+
+### `.dat` vs `.txt`
+
+`trace-cmd record` always produces a binary `.dat` file. It is compact,
+includes metadata (CPU topology, event format strings, clock source), and is
+the native input for KernelShark.
+
+`.txt` is plain text in the same format as `/sys/kernel/tracing/trace`. It is
+human-readable and the format Perfetto accepts.
+
+| | `.dat` | `.txt` |
+|---|---|---|
+| Produced by | `trace-cmd record` | `trace-cmd report`, manual `cat trace` |
+| Size | Smaller (binary) | Larger (text) |
+| KernelShark | ✔ native | ✘ |
+| Perfetto | ✘ | ✔ (best-effort) |
+| Human-readable | ✘ | ✔ |
+
+### Record with trace-cmd
+
+**Single command (records until the app exits):**
+
+```bash
+sudo trace-cmd record -e sched:sched_switch -e sched:sched_wakeup \
+    -e sched:sched_migrate_task \
+    -- env TRIX_BACKEND=ftrace LD_LIBRARY_PATH=$PWD/build \
+       $PWD/build/demo/trix_demo
+```
+
+**Separate start / stop (useful when the app is already running):**
+
+```bash
+# 1. Start tracing
+sudo trace-cmd start -e sched:sched_switch -e sched:sched_wakeup \
+    -e sched:sched_migrate_task
+
+# 2. Run your application (sudo env passes env vars through sudo)
+sudo env TRIX_BACKEND=ftrace LD_LIBRARY_PATH=$PWD/build $PWD/build/demo/trix_demo
+
+# 3. Stop and save to trace.dat
+sudo trace-cmd stop
+sudo trace-cmd extract
+```
+
+Both approaches produce `trace.dat` in the current directory.
+
+### Convert `.dat` to `.txt`
+
+To open a trace in Perfetto, convert the binary `.dat` to text. `trace-cmd
+report` wraps trix events as `print: tracing_mark_write: ...` but Perfetto
+expects `tracing_mark_write: ...` directly — strip the prefix with `sed`:
+
+```bash
+trace-cmd report trace.dat \
+  | sed 's/: print: *tracing_mark_write:/: tracing_mark_write:/' \
+  > trace.txt
+```
+
+Then drag and drop `trace.txt` into [Perfetto](https://ui.perfetto.dev) as usual.
+
+### View in KernelShark
+
+KernelShark reads `.dat` files directly — no conversion needed:
+
+```bash
+kernelshark trace.dat
+```
+
+> Full KernelShark usage is covered in [viewers/kernelshark](../viewers/kernelshark.md).
