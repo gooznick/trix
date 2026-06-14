@@ -169,3 +169,16 @@ target_compile_definitions(myapp PRIVATE TRIX_ENABLED)
 
 - [doc/tracing.md](doc/tracing.md) — tracing guide: instrument your code, backend comparison (overhead, strings, viewers, privilege), links to per-backend and per-viewer references
 - [doc/example.md](doc/example.md) — step-by-step build and run examples for every backend
+
+---
+
+## Smoke tester
+
+`trix_smoke` is a dependency-free C++11 executable that exercises every trix API call from multiple threads. Use it to verify a backend is installed and working before starting a real trace session.
+
+```bash
+cmake --build build --target trix_smoke
+TRIX_BACKEND=ftrace ./build/smoke/trix_smoke   # prints "trix smoke: OK"
+```
+
+Built by default; disable with `-DTRIX_BUILD_SMOKE=OFF`.

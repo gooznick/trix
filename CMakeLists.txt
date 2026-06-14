@@ -172,6 +172,12 @@ if(TRIX_BUILD_DEMO)
     add_subdirectory(demo)
 endif()
 
+# --- Smoke tester ---
+option(TRIX_BUILD_SMOKE "Build the trix smoke tester" ON)
+if(TRIX_BUILD_SMOKE)
+    add_subdirectory(smoke)
+endif()
+
 # --- Install ---
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)

@@ -2,6 +2,14 @@
 
 All notable changes to trix are documented here.
 
+## [1.4.2] — 2026-06-14
+
+### Added
+
+- `smoke/` — dependency-free C++11 smoke tester (`trix_smoke`). Spawns worker
+  threads that call every trix API function; use it to verify a backend is
+  compiled in and dispatching correctly. Built by default (`TRIX_BUILD_SMOKE=ON`).
+
 ## [1.4.1] — 2026-06-02
 
 ### Added
