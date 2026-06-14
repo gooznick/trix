@@ -1,102 +1,72 @@
 #!/usr/bin/env sh
-# capture_lttng_pre.sh — create an LTTng session and record a trix run.
+# capture_lttng_pre.sh — create an LTTng session and start tracing.
 #
-# The LTTng session stays ACTIVE after the command exits (or Ctrl+C).
-# You can run more commands before calling capture_lttng_post.sh.
+# Run this first, then start your application.
+# When done, call capture_lttng_post.sh to stop and save.
 #
 # Usage:
-#   ./scripts/capture_lttng_pre.sh <command> [args...]
-#   # With context switches (requires root + lttng-modules-dkms):
-#   sudo ./scripts/capture_lttng_pre.sh <command> [args...]
+#   sh ./scripts/capture_lttng_pre.sh          # UST only
+#   sudo sh ./scripts/capture_lttng_pre.sh     # UST + kernel sched events
 #
 # Environment variables:
-#   TRIX_BACKEND      Forwarded to the command.  Defaults to "lttng".
-#   LD_LIBRARY_PATH   Forwarded to the command if already set.
-#
-# Requirements:
-#   - lttng-tools     (apt install lttng-tools)
-#   - liblttng-ust-dev  (apt install liblttng-ust-dev)
-#   - For context switches: lttng-modules-dkms + root
+#   TRIX_SESSION_NAME      LTTng session name. Default: trix_YYYYMMDD_HHMMSS.
+#   TRIX_LTTNG_NO_KERNEL   Set to 1 to skip kernel sched events even when root.
 
 set -eu
 
 STATE_FILE=/tmp/trix_lttng_state
 
-# ── Arguments ─────────────────────────────────────────────────────────────────
-
-if [ $# -eq 0 ]; then
-    echo "Usage: $0 <command> [args...]" >&2
-    echo "  e.g. $0 ./build/demo/trix_demo" >&2
-    exit 1
-fi
-
-CMD="$1"; shift
-CMD_ARGS="$*"
-
-if [ ! -x "${CMD}" ]; then
-    echo "ERROR: '${CMD}' is not executable or does not exist." >&2
-    exit 1
-fi
+# ── Prerequisites ─────────────────────────────────────────────────────────────
 
 if ! command -v lttng >/dev/null 2>&1; then
-    echo "ERROR: lttng not found." >&2
-    echo "  apt install lttng-tools" >&2
+    echo "ERROR: lttng not found.  apt install lttng-tools" >&2
     exit 1
 fi
 
 # ── Session setup ─────────────────────────────────────────────────────────────
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-SESSION="trix_${TIMESTAMP}"
+SESSION="${TRIX_SESSION_NAME:-trix_${TIMESTAMP}}"
 CTF_DIR="/tmp/${SESSION}"
 
 lttng-sessiond --daemonize 2>/dev/null || true
-sleep 0.5
+sleep 0.3
 
 lttng create "${SESSION}" --output="${CTF_DIR}" >/dev/null
 lttng enable-event -u 'trix:*' >/dev/null
 lttng add-context -u -t vpid -t vtid -t procname >/dev/null
 
-# ── Kernel sched_switch (requires lttng-modules-dkms + root) ─────────────────
+# ── Kernel sched events (requires root + lttng-modules-dkms) ─────────────────
 
-HAVE_SCHED=0
-if [ "$(id -u)" -eq 0 ]; then
-    if lttng enable-event -k sched_switch >/dev/null 2>&1; then
-        HAVE_SCHED=1
-        echo "  kernel sched_switch: enabled"
-    else
-        echo "  kernel sched_switch: unavailable (install lttng-modules-dkms for context switches)"
-    fi
+HAVE_KERNEL=0
+if [ "${TRIX_LTTNG_NO_KERNEL:-0}" = "1" ]; then
+    echo "  kernel events: skipped (TRIX_LTTNG_NO_KERNEL=1)"
+elif [ "$(id -u)" -ne 0 ]; then
+    echo "  kernel events: skipped (re-run with sudo to include sched_switch/sched_wakeup)"
 else
-    echo "  kernel sched_switch: skipped (run as root to include context switches)"
+    if lttng enable-event -k sched_switch >/dev/null 2>&1 && \
+       lttng enable-event -k sched_wakeup  >/dev/null 2>&1; then
+        HAVE_KERNEL=1
+        echo "  kernel events: enabled (sched_switch, sched_wakeup)"
+    else
+        echo "  kernel events: unavailable — install lttng-modules-dkms and reboot:"
+        echo "    sudo apt install lttng-modules-dkms"
+    fi
 fi
 
 # ── Save state for capture_lttng_post.sh ─────────────────────────────────────
 
 printf 'SESSION=%s\nCTF_DIR=%s\n' "${SESSION}" "${CTF_DIR}" > "${STATE_FILE}"
-if [ -n "${SUDO_USER:-}" ]; then
-    printf 'ORIG_USER=%s\n' "${SUDO_USER}" >> "${STATE_FILE}"
-fi
 
-# ── Record ────────────────────────────────────────────────────────────────────
+# ── Start ─────────────────────────────────────────────────────────────────────
 
 lttng start >/dev/null
 
-echo "Recording '${CMD}${CMD_ARGS:+ ${CMD_ARGS}}' with LTTng..."
-echo "  session : ${SESSION}"
+echo "LTTng session '${SESSION}' started."
 echo "  CTF dir : ${CTF_DIR}"
-echo "(Ctrl+C stops the command but the session stays active.)"
 echo ""
-
-trap '' INT
-
-TRIX_BACKEND="${TRIX_BACKEND:-lttng}" \
-    LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" \
-    "${CMD}" ${CMD_ARGS} || true
-
-trap - INT
-
+echo "Run your application, e.g.:"
+echo "  TRIX_BACKEND=lttng LD_LIBRARY_PATH=\$PWD/build ./your_app"
 echo ""
-echo "Command finished.  Session is still active."
-echo "Run more commands, then save the trace:"
-echo "  sh ./scripts/capture_lttng_post.sh"
+echo "When done: sh ./scripts/capture_lttng_post.sh"
+

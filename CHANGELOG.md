@@ -2,6 +2,19 @@
 
 All notable changes to trix are documented here.
 
+## [1.4.3] — 2026-06-14
+
+### Added
+
+- `doc/backends/lttng.md` — LTTng backend documentation: install, verify,
+  manual capture, context-switch capture, capture scripts, Perfetto conversion.
+- `scripts/capture_lttng_pre.sh` / `capture_lttng_post.sh` rewritten to match
+  the ftrace script style (start/stop split, no command argument).
+  `capture_lttng_pre.sh` auto-enables kernel `sched_switch`/`sched_wakeup` when
+  run as root; warns and continues if `lttng-modules-dkms` is absent.
+  New env vars: `TRIX_SESSION_NAME`, `TRIX_LTTNG_NO_KERNEL`.
+- Removed `scripts/capture_lttng.sh` (all-in-one wrapper, superseded).
+
 ## [1.4.2] — 2026-06-14
 
 ### Added
