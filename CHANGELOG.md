@@ -2,6 +2,19 @@
 
 All notable changes to trix are documented here.
 
+## [1.4.4] — 2026-06-14
+
+### Added
+
+- `doc/viewers/tracecompass.md` — Trace Compass installation, usage, and pros/cons.
+
+### Changed
+
+- `README.md` — added `lttng` and `atrace` to runtime backend examples; clarified
+  that `third_party/ittapi/` is bundled in the repo (not fetched at build time).
+- `CMakeLists.txt` — removed `FetchContent` fallback for ittapi; fails with a clear
+  error if `third_party/ittapi/` is missing (it is always present in the repo).
+
 ## [1.4.3] — 2026-06-14
 
 ### Added

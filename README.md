@@ -31,7 +31,9 @@ A unified C/C++ tracing API. Instrument your code once, choose the backend at ru
 ```bash
 TRIX_BACKEND=ftrace  ./myapp   # Linux kernel tracer
 TRIX_BACKEND=perf    ./myapp   # perf SDT probes
-TRIX_BACKEND=itt     ./myapp   # Intel VTune
+TRIX_BACKEND=lttng   ./myapp   # LTTng UST
+TRIX_BACKEND=itt     ./myapp   # Intel VTune (Linux/Windows)
+TRIX_BACKEND=atrace  ./myapp   # Android/file-based atrace
 TRIX_BACKEND=etw     myapp.exe # Windows ETW
 ```
 
@@ -97,7 +99,9 @@ Disable a backend:
 cmake -B build -DTRIX_BACKEND_PERF=OFF
 ```
 
-Requires CMake 3.16+. ITT backend sources are fetched automatically if not present.
+Requires CMake 3.16+. ITT backend sources (`third_party/ittapi/`) are bundled
+in the repository (from [github.com/intel/ittapi](https://github.com/intel/ittapi))
+and compiled directly into the library — no separate install needed.
 
 ---
 

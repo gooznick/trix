@@ -78,17 +78,12 @@ if(TRIX_BACKEND_PERF)
 endif()
 
 if(TRIX_BACKEND_ITT)
+    # ittapi sources are bundled in third_party/ittapi/ (from https://github.com/intel/ittapi).
+    # To update: replace third_party/ittapi/ with a fresh clone/export of the desired tag.
     set(ITTAPI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/ittapi")
     if(NOT EXISTS "${ITTAPI_DIR}/include/ittnotify.h")
-        message(STATUS "trix: ittapi not found — fetching from GitHub...")
-        include(FetchContent)
-        FetchContent_Declare(ittapi
-            GIT_REPOSITORY https://github.com/intel/ittapi.git
-            GIT_TAG        master
-            GIT_SHALLOW    TRUE
-            SOURCE_DIR     "${ITTAPI_DIR}"
-        )
-        FetchContent_Populate(ittapi)
+        message(FATAL_ERROR "trix: ittapi not found at ${ITTAPI_DIR}. "
+            "Ensure the third_party/ittapi directory is present (git clone includes it).")
     endif()
     list(APPEND TRIX_SOURCES
         src/backends/itt/backend_itt.cpp

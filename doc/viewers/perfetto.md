@@ -83,6 +83,20 @@ shows the exact value and timestamp.
   Coloured bars show which thread held each core. Requires scheduling events
   in the trace (enabled by default in the capture scripts).
 
+### Example: thread affinity and oversubscription
+
+CPU lanes make oversubscription immediately visible.
+
+**3 threads on 3 dedicated CPUs** — each thread fills its CPU lane
+continuously, no gaps, no contention:
+
+![Perfetto ftrace — 3 threads on 3 dedicated CPUs](../screenshots/perfetto_ftrace_3threads_3cpus.png)
+
+**6 threads sharing 3 CPUs** — threads contend for cores, CPU lanes show
+frequent context switches and idle gaps:
+
+![Perfetto ftrace — 6 threads on 3 CPUs (oversubscription)](../screenshots/perfetto_ftrace_oversubscription.png)
+
 
 ---
 
