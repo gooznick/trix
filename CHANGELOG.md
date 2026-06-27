@@ -2,6 +2,12 @@
 
 All notable changes to trix are documented here.
 
+## [1.4.5] — 2026-06-27
+
+### Added
+
+- `doc/backends/etw.md` — ETW backend documentation with UIforETW capture guide and WPA walkthrough.
+
 ## [1.4.4] — 2026-06-14
 
 ### Added
