@@ -15,6 +15,51 @@ endforeach()
 
 project(trix VERSION "${_TRIX_MAJOR}.${_TRIX_MINOR}.${_TRIX_PATCH}" LANGUAGES C CXX)
 
+# --- Install prefix ---
+# By default, trix installs to <build>/install (a local, non-system directory).
+# Pass -DCMAKE_INSTALL_SYSTEM=ON at configure time to install to the system prefix
+# (/usr/local on Linux, C:/Program Files/trix on Windows) instead.
+# Passing -DCMAKE_INSTALL_PREFIX=<path> at any time overrides both behaviours.
+option(CMAKE_INSTALL_SYSTEM
+    "Install to system prefix (e.g. /usr/local on Linux). Default: <build-dir>/install."
+    OFF)
+
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    # _TRIX_INSTALL_PREFIX_MANAGED remembers the prefix we last auto-set so we can
+    # undo it correctly when the user toggles CMAKE_INSTALL_SYSTEM.
+    if(NOT DEFINED _TRIX_INSTALL_PREFIX_MANAGED)
+        set(_TRIX_INSTALL_PREFIX_MANAGED "" CACHE INTERNAL "Last install prefix auto-set by trix")
+    endif()
+
+    if(CMAKE_INSTALL_SYSTEM)
+        # Switch from local to system: only touch the prefix when it is still the value
+        # we auto-set (i.e. not something the user provided explicitly).
+        if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT OR
+           CMAKE_INSTALL_PREFIX STREQUAL _TRIX_INSTALL_PREFIX_MANAGED)
+            if(WIN32)
+                set(CMAKE_INSTALL_PREFIX "C:/Program Files/trix"
+                    CACHE PATH "Installation prefix" FORCE)
+            else()
+                set(CMAKE_INSTALL_PREFIX "/usr/local"
+                    CACHE PATH "Installation prefix" FORCE)
+            endif()
+            set(_TRIX_INSTALL_PREFIX_MANAGED "" CACHE INTERNAL "Last install prefix auto-set by trix")
+        endif()
+    elseif(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+        # First configure without CMAKE_INSTALL_SYSTEM: default to local build tree.
+        set(CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/install"
+            CACHE PATH "Installation prefix (default: <build>/install; use -DCMAKE_INSTALL_SYSTEM=ON for system install)"
+            FORCE)
+        set(_TRIX_INSTALL_PREFIX_MANAGED "${PROJECT_BINARY_DIR}/install"
+            CACHE INTERNAL "Last install prefix auto-set by trix")
+    endif()
+
+    message(STATUS "trix: install prefix — ${CMAKE_INSTALL_PREFIX}")
+    if(NOT CMAKE_INSTALL_SYSTEM)
+        message(STATUS "trix:   (use -DCMAKE_INSTALL_SYSTEM=ON to install to the system prefix instead)")
+    endif()
+endif()
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
@@ -176,6 +221,9 @@ endif()
 # --- Install ---
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+
+# Print the effective prefix at install time (picks up --prefix overrides too).
+install(CODE "message(STATUS \"trix ${PROJECT_VERSION}: installing to '\${CMAKE_INSTALL_PREFIX}'\")")
 
 install(TARGETS trix
     EXPORT TrixTargets

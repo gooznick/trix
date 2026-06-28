@@ -107,19 +107,56 @@ and compiled directly into the library — no separate install needed.
 
 ## Install
 
-Install to the system default prefix (`/usr/local` on Linux):
+### Default: local install (build/install)
+
+By default, `cmake --install` installs into `<build-dir>/install` — a local directory
+inside your build tree, requiring no elevated privileges:
 
 ```bash
-cmake --install build
+cmake -B build          # configures; prefix is automatically set to build/install
+cmake --build build
+cmake --install build   # installs to build/install/
 ```
 
-Or to a custom prefix:
+CMake prints the effective prefix during both configure and install:
+
+```
+-- trix: install prefix — /path/to/your/build/install
+-- trix 1.x.y: installing to '/path/to/your/build/install'
+```
+
+### System-wide install
+
+Pass `-DCMAKE_INSTALL_SYSTEM=ON` at configure time to use the platform system prefix
+(`/usr/local` on Linux, `C:\Program Files\trix` on Windows):
 
 ```bash
-cmake --install build --prefix /path/to/prefix
+cmake -B build -DCMAKE_INSTALL_SYSTEM=ON
+cmake --build build
+sudo cmake --install build   # installs to /usr/local (Linux)
 ```
 
-What gets installed:
+### Custom prefix
+
+Pass `-DCMAKE_INSTALL_PREFIX=<path>` to override both defaults:
+
+```bash
+cmake -B build -DCMAKE_INSTALL_PREFIX=/opt/trix
+cmake --build build
+cmake --install build        # installs to /opt/trix
+```
+
+Or supply `--prefix` at install time (without reconfiguring):
+
+```bash
+cmake --install build --prefix /opt/trix
+```
+
+> **Note:** Toggling `CMAKE_INSTALL_SYSTEM` after the first configure only takes effect
+> if you have not set `CMAKE_INSTALL_PREFIX` explicitly.  When in doubt, delete the build
+> directory and reconfigure from scratch.
+
+### What gets installed
 
 ```
 <prefix>/
@@ -146,8 +183,8 @@ target_compile_definitions(myapp PRIVATE TRIX_ENABLED)
 ```
 
 ```bash
-# If installed to a custom prefix, tell CMake where to look:
-cmake -B build -DCMAKE_PREFIX_PATH=/path/to/prefix
+# Tell CMake where to find the installed trix (local default is build/install):
+cmake -B build -DCMAKE_PREFIX_PATH=/path/to/trix/install
 ```
 
 At runtime, make sure the library is on the dynamic linker path:
