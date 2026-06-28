@@ -433,6 +433,7 @@ logman start trix-trace ^
 
 :: Run your app
 set TRIX_BACKEND=etw
+:: PowerShell equivalent: $env:TRIX_BACKEND = "etw"
 your_app.exe
 
 :: Stop and save
@@ -461,6 +462,7 @@ logman start trix-trace ^
   -o C:\tmp\trix.etl -ets
 
 set TRIX_BACKEND=etw
+:: PowerShell equivalent: $env:TRIX_BACKEND = "etw"
 your_app.exe
 
 logman stop trix-trace -ets

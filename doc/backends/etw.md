@@ -65,6 +65,11 @@ paths. Subsequent captures do not require elevation.
    set TRIX_BACKEND=etw
    myapp.exe
    ```
+   PowerShell equivalent:
+   ```powershell
+   $env:TRIX_BACKEND = "etw"
+   myapp.exe
+   ```
 6. In UIforETW click **Start tracing**, reproduce the frames you want to
    analyse, then click **Save trace buffers**.
 7. WPA opens automatically on the resulting `.etl` file.
@@ -87,7 +92,7 @@ etwrecord.bat
 ```
 
 The script starts recording, pauses, and waits for a keypress. Run your
-application (`set TRIX_BACKEND=etw`), reproduce the frames of interest, then press any key. The script
+application (`set TRIX_BACKEND=etw`, or PowerShell: `$env:TRIX_BACKEND = "etw"`), reproduce the frames of interest, then press any key. The script
 merges the kernel and user traces, saves an `.etl` file under
 `%USERPROFILE%\Documents\etwtraces\`, and opens WPA automatically.
 
