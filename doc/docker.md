@@ -43,11 +43,16 @@ or inside a container — writes to the same kernel ring-buffer via
 
 - Run the capture scripts (`capture_ftrace_pre.sh` / `capture_ftrace_post.sh`)
   on the **host**, not inside the containers.
-- Each container needs `tracefs` accessible. Either:
-  - Run `capture_ftrace_pre.sh` on the host (mounts tracefs there), **or**
-  - Add `--privileged` or `--cap-add SYS_ADMIN` to the container that needs
-    to write markers (standard trix usage already works without this for
-    `trace_marker` writes if the host script has opened the buffer).
+- Each container needs `tracefs` accessible. Run the container with
+  `--privileged` and mount tracefs inside it:
+  ```bash
+  docker run --privileged ... \
+    sh -c "mount -t tracefs nodev /sys/kernel/tracing && your_app"
+  ```
+  `--cap-add SYS_ADMIN` alone is not sufficient — Docker's sysfs prevents
+  mounting over `/sys/kernel/tracing` without full privileges.
+- Set `TRIX_BACKEND=ftrace` and `LD_LIBRARY_PATH` pointing to `libtrix.so`
+  inside the container (see Recommended setup below).
 - `libtrix.so` must be present inside each container (copy it in, or mount
   it via a volume).
 
@@ -112,21 +117,54 @@ trace automatically.
 
 ## Recommended setup for microservices
 
-1. **Use the ftrace backend** in every service.
-2. Mount `libtrix.so` into each container via a volume, or bake it into your
-   base image.
-3. Run `capture_ftrace_pre.sh` on the **host** before starting (or after
-   starting) the containers.
-4. Exercise your workload.
-5. Run `capture_ftrace_post.sh` on the **host**.
-6. Open the resulting `.txt` file in [Perfetto UI](https://ui.perfetto.dev) —
-   it is native ftrace format, drag-and-drop works directly.
+### Without trix user traces (system events only)
+
+No special Docker flags, mounts, or environment variables are required.
+Container processes appear in host ftrace `sched_switch` events automatically
+under their process name — the host kernel records all scheduling regardless
+of container boundaries.
 
 ```bash
 # Host — start capture
 sudo sh scripts/capture_ftrace_pre.sh
 
-# Containers run normally — trix writes trace_marker through the host kernel
+# Run containers normally — no special flags needed
+docker run --rm your_image your_app
+
+# Host — stop and collect
+sudo sh scripts/capture_ftrace_post.sh
+# → trix_ftrace_YYYYMMDD_HHMMSS.txt
+```
+
+The trace contains context switches, wakeups, and IRQs for every container
+process on a unified host clock.
+
+---
+
+### With trix user traces (system events + trix spans)
+
+Three things are required for containers to write to the host kernel ring-buffer:
+
+| What | How |
+|------|-----|
+| `--privileged` | Allows mounting tracefs inside the container (`--cap-add SYS_ADMIN` alone is not sufficient) |
+| `mount -t tracefs nodev /sys/kernel/tracing` | Makes `trace_marker` accessible inside the container — Docker's sysfs prevents a plain bind-mount from working |
+| `TRIX_BACKEND=ftrace` | Selects the ftrace backend; without it trix uses the nop backend and writes nothing |
+
+`LD_LIBRARY_PATH` (or an installed `libtrix.so`) is also needed so the
+dynamic linker finds the library.
+
+```bash
+# Host — start capture
+sudo sh scripts/capture_ftrace_pre.sh
+
+# Run each container
+docker run --rm --privileged \
+  -v /path/to/trix/build:/trix \
+  -e TRIX_BACKEND=ftrace \
+  -e LD_LIBRARY_PATH=/trix \
+  your_image \
+  sh -c "mount -t tracefs nodev /sys/kernel/tracing && your_app"
 
 # Host — stop and collect
 sudo sh scripts/capture_ftrace_post.sh
